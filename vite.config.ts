@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
+import path from "path";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -15,5 +16,17 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
+  },
+  resolve: {
+    alias: [
+      {
+        find: "@src",
+        replacement: path.resolve(__dirname, "src"),
+      },
+      {
+        find: "@components",
+        replacement: path.resolve(__dirname, "src/components"),
+      },
+    ],
   },
 });
