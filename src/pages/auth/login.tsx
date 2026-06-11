@@ -1,12 +1,13 @@
 import { useState } from "react";
-import "../styles/login.css";
+import "../../styles/auth/login.css";
 import { useNavigate } from "react-router-dom";
+import { setWithExpiry } from "@src/utils";
 
 export default function Login() {
   const navigate = useNavigate();
 
-  const [loginId, setLoginId] = useState("");
-  const [password, setPassword] = useState("");
+  const [loginId, setLoginId] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
 
   const requestLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -43,22 +44,21 @@ export default function Login() {
       .then(async (res) => {
         if (res?.ok) {
           const response = await res.json();
-          window.sessionStorage.setItem(
-            "access_token",
-            response.data["access_token"],
-          );
-          window.sessionStorage.setItem(
+          setWithExpiry("access_token", response.data["access_token"], 3600);
+          setWithExpiry(
             "refresh_token",
             response.data["refresh_token"],
+            604800,
           );
 
           alert("로그인 완료!");
           navigate("/");
 
+          window.location.reload();
           return res;
         }
       })
-      .catch((error) => {
+      .catch(() => {
         alert("서버 에러가 발생하였습니다.");
         return;
       });
@@ -123,7 +123,7 @@ export default function Login() {
               <label className="field">
                 <div className="field-row">
                   <span>비밀번호</span>
-                  <a href="/">비밀번호 찾기</a>
+                  <a href="/certifiemail">비밀번호 찾기</a>
                 </div>
                 <input
                   type="password"
@@ -161,7 +161,7 @@ export default function Login() {
             </div>
 
             <p className="signup-text">
-              아직 계정이 없나요? <a href="/">회원가입</a>
+              아직 계정이 없나요? <a href="/signup">회원가입</a>
             </p>
           </div>
         </div>

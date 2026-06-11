@@ -1,0 +1,375 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.08), transparent 24%),
+    #f4f7fb;
+  color: #111827;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.posts-page {
+  min-height: 100vh;
+  padding: 28px;
+}
+
+.posts-shell {
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+.posts-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 34px;
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.08);
+}
+
+.posts-badge {
+  display: inline-flex;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.posts-hero-copy h1 {
+  margin: 16px 0 12px;
+  font-size: 46px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.posts-hero-copy p {
+  margin: 0;
+  max-width: 720px;
+  color: #6b7280;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.posts-create-btn {
+  flex-shrink: 0;
+  min-width: 140px;
+  height: 54px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 18px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 14px 28px rgba(17, 24, 39, 0.14);
+}
+
+.posts-toolbar {
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 16px 40px rgba(17, 24, 39, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.posts-search-wrap {
+  flex: 1;
+}
+
+.posts-search-input {
+  width: 100%;
+  height: 54px;
+  padding: 0 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
+  background: #f9fafb;
+  outline: none;
+  color: #111827;
+}
+
+.posts-toolbar-actions {
+  display: flex;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.posts-select {
+  min-width: 120px;
+  height: 54px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
+  background: #f9fafb;
+  color: #111827;
+  outline: none;
+  cursor: pointer;
+}
+
+.posts-category-bar {
+  margin-top: 20px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.posts-category-chip {
+  height: 46px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #4b5563;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
+}
+
+.posts-category-chip.is-active {
+  background: #111827;
+  color: #ffffff;
+}
+
+.posts-summary-row {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.posts-summary-card {
+  padding: 24px;
+  border-radius: 24px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
+}
+
+.posts-summary-card strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 28px;
+}
+
+.posts-summary-card span {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.posts-list-section {
+  margin-top: 24px;
+  padding: 28px;
+  border-radius: 28px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
+}
+
+.posts-list-head {
+  margin-bottom: 20px;
+}
+
+.posts-list-head h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+}
+
+.posts-list-head p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.7;
+}
+
+.posts-list {
+  display: grid;
+  gap: 16px;
+}
+
+.posts-item {
+  padding: 22px;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  background: #fcfdff;
+}
+
+.posts-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.posts-item-category {
+  display: inline-flex;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.posts-item-category.free {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.posts-item-category.sport {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.posts-item-category.game {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.posts-item-date {
+  color: #9ca3af;
+  font-size: 13px;
+}
+
+.posts-item h3 {
+  margin: 0 0 10px;
+  font-size: 24px;
+  line-height: 1.35;
+}
+
+.posts-item p {
+  margin: 0;
+  color: #6b7280;
+  line-height: 1.8;
+}
+
+.posts-item-bottom {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.posts-item-author {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.posts-item-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #111827;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.posts-item-meta {
+  display: flex;
+  gap: 12px;
+  color: #4b5563;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.posts-pagination {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.posts-page-btn {
+  min-width: 46px;
+  height: 46px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #374151;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.06);
+}
+
+.posts-page-btn.is-current {
+  background: #111827;
+  color: #ffffff;
+}
+
+@media (max-width: 1024px) {
+  .posts-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .posts-hero,
+  .posts-toolbar,
+  .posts-item-bottom {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .posts-toolbar-actions {
+    width: 100%;
+  }
+
+  .posts-select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .posts-page {
+    padding: 20px;
+  }
+
+  .posts-hero,
+  .posts-list-section {
+    padding: 24px;
+    border-radius: 24px;
+  }
+
+  .posts-hero-copy h1 {
+    font-size: 34px;
+  }
+
+  .posts-toolbar {
+    padding: 16px;
+  }
+
+  .posts-toolbar-actions {
+    flex-direction: column;
+  }
+
+  .posts-create-btn,
+  .posts-select {
+    width: 100%;
+  }
+
+  .posts-item h3 {
+    font-size: 20px;
+  }
+}
