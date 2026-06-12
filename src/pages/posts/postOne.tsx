@@ -30,7 +30,6 @@ export function PostOne() {
         .then(async (res) => {
           if (res.status > 200) {
             const response = await res.json();
-            console.log("test: ", response);
             alert(response.message);
             setIsLoading(false);
           } else {
