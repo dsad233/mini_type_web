@@ -277,11 +277,6 @@ input {
   font-size: 14px;
 }
 
-.author-info span {
-  color: #6b7280;
-  font-size: 13px;
-}
-
 .post-meta {
   display: flex;
   gap: 12px;
