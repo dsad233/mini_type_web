@@ -13,13 +13,6 @@ type Posts = {
   users: { nickname: string; image: string | null };
 }[];
 
-// type TCategory = {
-//   ALL: string;
-//   FREE: string;
-//   SPORT: string;
-//   GAME: string;
-// };
-
 export type OrderBy = {
   NEW: string;
   POPULAR: string;
