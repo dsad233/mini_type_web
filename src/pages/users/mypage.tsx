@@ -90,7 +90,7 @@ export default function MyPage() {
     },
     {
       id: 3,
-      category: "SPORT",
+      category: "SPORTS",
       title: "러닝 시작 2주차 후기",
       createdAt: "2026.05.11",
       comments: 4,

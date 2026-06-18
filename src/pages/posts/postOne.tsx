@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import "../../styles/posts/postOne.css";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Loading } from "@src/components";
+import { getWithExpiry } from "@src/utils";
 
 type TPost = {
   id: string;
@@ -14,17 +15,50 @@ type TPost = {
 };
 
 export function PostOne() {
+  const navigate = useNavigate();
+  const [isSession] = useState<string | null>(() =>
+    getWithExpiry("access_token"),
+  );
   const [post, setPost] = useState<TPost>();
   const { pathname } = useLocation();
+  const postId = pathname.split("/posts")[1].slice(1);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const deletePost = async () => {
+    await fetch(`/api/posts/remove/${encodeURI(postId)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${isSession}`,
+      },
+    })
+      .then(async (res) => {
+        if (res.status > 200) {
+          const response = await res.json();
+          alert(response.message);
+          setIsLoading(false);
+        } else {
+          return res;
+        }
+      })
+      .then((res) => {
+        if (res?.ok) {
+          setIsLoading(false);
+          alert("게시글이 삭제 완료 되었습니다.");
+          navigate("/posts");
+          return res;
+        }
+      });
+  };
+
   useEffect(() => {
     const requestPost = async () => {
-      await fetch(`/api/posts/${pathname.split("/post")[1].slice(1)}`, {
+      await fetch(`/api/posts/${encodeURI(postId)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${isSession}`,
         },
       })
         .then(async (res) => {
@@ -47,7 +81,7 @@ export function PostOne() {
     };
 
     requestPost();
-  }, [pathname]);
+  }, [pathname, postId, isSession]);
 
   return (
     <>
@@ -82,10 +116,19 @@ export function PostOne() {
                     </div>
                   </div>
 
-                  <div className="post-one-actions">
-                    <button type="button">수정</button>
-                    <button type="button">삭제</button>
-                  </div>
+                  {isSession && (
+                    <div className="post-one-actions">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/posts/update/${postId}`)}
+                      >
+                        수정
+                      </button>
+                      <button type="button" onClick={deletePost}>
+                        삭제
+                      </button>
+                    </div>
+                  )}
                 </div>
               </header>
 
@@ -99,7 +142,11 @@ export function PostOne() {
                 <button type="button" className="post-one-like-btn">
                   좋아요 24
                 </button>
-                <button type="button" className="post-one-list-btn">
+                <button
+                  type="button"
+                  className="post-one-list-btn"
+                  onClick={() => navigate("/posts")}
+                >
                   목록으로
                 </button>
               </section>

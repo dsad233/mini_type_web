@@ -9,8 +9,9 @@ import CertifiEmail from "./pages/certifiEmail.tsx";
 import ResetPassword from "./pages/resetPassword.tsx";
 import SignUp from "./pages/auth/signup.tsx";
 import Posts from "./pages/posts/posts.tsx";
-import CreatePost from "./pages/posts/createPost.tsx";
+import PostCreate from "./pages/posts/postCreate.tsx";
 import { PostOne } from "./pages/posts/postOne.tsx";
+import PostUpdate from "./pages/posts/postUpdate.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -27,8 +28,9 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/mypage" element={<MyPage />} />
         // posts
         <Route path="/posts" element={<Posts />} />
-        <Route path="/post/:id" element={<PostOne />} />
-        <Route path="/posts/create" element={<CreatePost />} />
+        <Route path="/posts/:id" element={<PostOne />} />
+        <Route path="/posts/create" element={<PostCreate />} />
+        <Route path="/posts/update/:id" element={<PostUpdate />} />
       </Routes>
     </StrictMode>
   </BrowserRouter>,

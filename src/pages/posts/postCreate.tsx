@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import "../../styles/posts/createPost.css";
+import "../../styles/posts/postCreate.css";
 import { useEffect, useState } from "react";
 import { getWithExpiry } from "@src/utils";
 import { Loading } from "@src/components";
 
-export default function CreatePost() {
+export default function PostCreate() {
   const navigate = useNavigate();
   const [isSession] = useState<string | null>(() =>
     getWithExpiry("access_token"),
@@ -94,7 +94,7 @@ export default function CreatePost() {
                 </div>
                 <div className="create-post-guide-item">
                   <strong>카테고리를 맞게 선택</strong>
-                  <span>FREE, SPORT, GAME 중 맞는 주제를 골라주세요.</span>
+                  <span>FREE, SPORTS, GAME 중 맞는 주제를 골라주세요.</span>
                 </div>
               </div>
             </aside>
@@ -136,7 +136,7 @@ export default function CreatePost() {
                       onChange={(e) => setCategory(e.target.value)}
                     >
                       <option value="FREE">FREE</option>
-                      <option value="SPORT">SPORT</option>
+                      <option value="SPORTS">SPORTS</option>
                       <option value="GAME">GAME</option>
                     </select>
                   </div>

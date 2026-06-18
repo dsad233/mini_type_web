@@ -41,6 +41,7 @@ export default function App() {
         .then(async (res) => {
           if (res.status > 200) {
             const response = await res.json();
+            console.log("test: ", response);
             alert(response.message);
             setIsLoading(false);
           } else {
@@ -162,7 +163,11 @@ export default function App() {
 
                   <div className="post-list">
                     {posts.map((post) => (
-                      <article key={post.id} className="post-card">
+                      <article
+                        key={post.id}
+                        className="post-card"
+                        onClick={() => navigate(`/posts/${post.id}`)}
+                      >
                         <div className="post-top">
                           <span
                             className={`post-category ${post.category.toLowerCase()}`}

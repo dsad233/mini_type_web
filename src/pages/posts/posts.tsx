@@ -49,6 +49,7 @@ export default function Posts() {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${isSession}`,
           },
         },
       )
@@ -127,7 +128,15 @@ export default function Posts() {
     post();
     postCount();
     category();
-  }, [page, pages, inputSearch, selectCategory, selectIsPublic, selectOrder]);
+  }, [
+    page,
+    pages,
+    inputSearch,
+    selectCategory,
+    selectIsPublic,
+    selectOrder,
+    isSession,
+  ]);
 
   console.log("posts: ", posts);
   console.log("count: ", count);
@@ -138,7 +147,7 @@ export default function Posts() {
   const getVisiblePages = () => {
     const maxVisible = 5;
     let start = Math.max(page - 2, 1);
-    let end = Math.min(start + maxVisible - 1, totalPages);
+    const end = Math.min(start + maxVisible - 1, totalPages);
 
     if (end - start < maxVisible - 1) {
       start = Math.max(end - maxVisible + 1, 1);
@@ -181,7 +190,7 @@ export default function Posts() {
   //   },
   //   {
   //     id: 3,
-  //     category: "SPORT",
+  //     category: "SPORTS",
   //     title: "러닝 시작 2주차 후기",
   //     content:
   //       "입문 러닝화를 신고 주 3회 달려본 후기와 초반 통증 줄이는 팁을 정리했습니다.",
@@ -318,7 +327,7 @@ export default function Posts() {
                   <article
                     className="posts-item"
                     key={post.id}
-                    onClick={() => navigate(`/post/${post.id}`)}
+                    onClick={() => navigate(`/posts/${encodeURI(post.id)}`)}
                   >
                     <div className="posts-item-top">
                       <span

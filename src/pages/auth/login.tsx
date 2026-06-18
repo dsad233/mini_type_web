@@ -92,7 +92,7 @@ export default function Login() {
             </article>
             <article>
               <strong>카테고리 탐색</strong>
-              <p>FREE · SPORT · GAME별로 관심사 정리</p>
+              <p>FREE · SPORTS · GAME별로 관심사 정리</p>
             </article>
             <article>
               <strong>안전한 계정 관리</strong>
