@@ -29,11 +29,13 @@ export default function CertifiEmail() {
       body: JSON.stringify({ email }),
     })
       .then(async (res) => {
-        if (res.status > 200) {
+        if (res.status > 200 && res.status < 500) {
           const response = await res.json();
-
-          alert(response.message);
+          alert(response.error || response.message);
           setLoading(false);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
         } else {
           return res;
         }
@@ -62,15 +64,17 @@ export default function CertifiEmail() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, code }),
+      body: JSON.stringify({ email, type: "PASSWORD", code }),
     })
       .then(async (res) => {
-        if (res.status > 200) {
+        if (res.status > 200 && res.status < 500) {
           const response = await res.json();
-
-          alert(response.message);
+          alert(response.error || response.message);
           setLoading(false);
           setVerifyLoading(false);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
         } else {
           return res;
         }
@@ -82,7 +86,9 @@ export default function CertifiEmail() {
           setLoading(false);
           setVerifyLoading(false);
 
-          navigate(`/resetpassword?email=${email}&token=${response.token}`);
+          navigate(
+            `/auth/password/reset?email=${encodeURIComponent(email)}&token=${encodeURIComponent(response.token)}`,
+          );
           return res;
         }
       });
@@ -100,11 +106,13 @@ export default function CertifiEmail() {
       body: JSON.stringify({ email }),
     })
       .then(async (res) => {
-        if (res.status > 200) {
+        if (res.status > 200 && res.status < 500) {
           const response = await res.json();
-
-          alert(response.message);
+          alert(response.error || response.message);
           setLoading(false);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
         } else {
           return res;
         }
@@ -185,7 +193,7 @@ export default function CertifiEmail() {
 
                   <button
                     type="submit"
-                    className="primary-btn"
+                    className="certifi-email-verify-btn"
                     disabled={verifyLoading}
                   >
                     {verifyLoading ? "확인 중..." : "인증번호 확인"}
@@ -204,7 +212,7 @@ export default function CertifiEmail() {
             )}
 
             <p className="bottom-link">
-              로그인으로 돌아가기 <a href="/login">로그인</a>
+              로그인으로 돌아가기 <a href="/signin">로그인</a>
             </p>
           </div>
         </div>

@@ -48,7 +48,7 @@ export default function ResetPassword() {
     setLoading(true);
 
     await fetch(
-      `/api/auth/update/password?email=${query.get("email")}&token=${query.get("token")}`,
+      `/api/auth/update/password?email=${encodeURIComponent(query.get("email") as string)}&token=${encodeURIComponent(query.get("token") as string)}`,
       {
         method: "PATCH",
         headers: {
@@ -61,11 +61,13 @@ export default function ResetPassword() {
       },
     )
       .then(async (res) => {
-        if (res.status > 200) {
+        if (res.status > 200 && res.status < 500) {
           const response = await res.json();
-          console.log("test: ", response);
-          alert(response.message);
+          alert(response.error || response.message);
           setLoading(false);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
         } else {
           return res;
         }
@@ -91,7 +93,7 @@ export default function ResetPassword() {
               이 페이지는 이메일 인증 완료 후 발급된 유효한 링크로만 접근할 수
               있습니다.
             </p>
-            <a href="/forgot-password" className="primary-link">
+            <a href="/forgot-password" className="reset-pw-link">
               비밀번호 재설정 다시 요청하기
             </a>
           </div>
@@ -190,7 +192,7 @@ export default function ResetPassword() {
 
                 <button
                   type="submit"
-                  className="primary-btn"
+                  className="reset-pw-btn"
                   disabled={loading}
                 >
                   {loading ? "변경 중..." : "비밀번호 변경"}
@@ -204,7 +206,7 @@ export default function ResetPassword() {
                   이제 새로운 비밀번호로 로그인할 수 있습니다. 보안을 위해 기존
                   세션은 다시 로그인하도록 처리하는 것이 좋습니다.
                 </p>
-                <a href="/login" className="primary-link">
+                <a href="/signin" className="reset-pw-link">
                   로그인 하러 가기
                 </a>
               </div>
