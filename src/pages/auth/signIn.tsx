@@ -1,13 +1,15 @@
 import { useState } from "react";
-import "../../styles/auth/login.css";
+import "../../styles/auth/signIn.css";
 import { useNavigate } from "react-router-dom";
 import { setWithExpiry } from "@src/utils";
 
-export default function Login() {
+export default function SignIn() {
   const navigate = useNavigate();
 
   const [loginId, setLoginId] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+
+  const [selectKeepLogin, setSelectKeepLogin] = useState<boolean>(false);
 
   const requestLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,23 +35,32 @@ export default function Login() {
       },
     })
       .then(async (res) => {
-        if (res.status > 200) {
-          const { error } = await res.json();
-          alert(error);
+        if (res.status > 200 && res.status < 500) {
+          const response = await res.json();
+          alert(response.error || response.message);
           return;
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
+        } else {
+          return res;
         }
-
-        return res;
       })
       .then(async (res) => {
         if (res?.ok) {
           const response = await res.json();
-          setWithExpiry("access_token", response.data["access_token"], 3600);
-          setWithExpiry(
-            "refresh_token",
-            response.data["refresh_token"],
-            604800,
-          );
+
+          // 로그인 상태 유지 체크 시 refresh_token 발급
+          if (selectKeepLogin) {
+            setWithExpiry("ack", response.data["access_token"], 60 * 60 * 1000);
+            setWithExpiry(
+              "ref",
+              response.data["refresh_token"],
+              60 * 60 * 1000 * 24 * 7,
+            );
+          } else {
+            setWithExpiry("ack", response.data["access_token"], 60 * 60 * 1000);
+          }
 
           alert("로그인 완료!");
           navigate("/");
@@ -57,10 +68,6 @@ export default function Login() {
           window.location.reload();
           return res;
         }
-      })
-      .catch(() => {
-        alert("서버 에러가 발생하였습니다.");
-        return;
       });
   };
 
@@ -123,7 +130,7 @@ export default function Login() {
               <label className="field">
                 <div className="field-row">
                   <span>비밀번호</span>
-                  <a href="/certifiemail">비밀번호 찾기</a>
+                  <a href="/auth/password/forgot">비밀번호 찾기</a>
                 </div>
                 <input
                   type="password"
@@ -134,7 +141,10 @@ export default function Login() {
               </label>
 
               <label className="check-row">
-                <input type="checkbox" />
+                <input
+                  type="checkbox"
+                  onChange={() => setSelectKeepLogin(true)}
+                />
                 <span>로그인 상태 유지</span>
               </label>
 
@@ -142,7 +152,11 @@ export default function Login() {
                 로그인
               </button>
 
-              <button type="button" className="sub-btn">
+              <button
+                type="button"
+                className="sub-btn"
+                onClick={() => navigate("/posts")}
+              >
                 게스트로 둘러보기
               </button>
             </form>
@@ -152,12 +166,19 @@ export default function Login() {
             </div>
 
             <div className="social-list">
-              <button type="button" className="social-btn">
+              <button
+                type="button"
+                className="social-btn"
+                onClick={() =>
+                  (window.location.href =
+                    "http://localhost:3000/auth/signin/social/google")
+                }
+              >
                 Google로 계속하기
               </button>
-              <button type="button" className="social-btn">
+              {/* <button type="button" className="social-btn">
                 Kakao로 계속하기
-              </button>
+              </button> */}
             </div>
 
             <p className="signup-text">
