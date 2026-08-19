@@ -2,21 +2,38 @@ import { useEffect, useState } from "react";
 import "../../styles/users/mypage.css";
 import { useNavigate } from "react-router-dom";
 import { Loading } from "@components/index.ts";
-import { getWithExpiry } from "@src/utils";
+import { getWithExpiry, imageDecodeToUrl, removeSession } from "@src/utils";
 
-type UserObject = {
+type TUserObject = {
   id: string;
   email: string;
   nickname: string;
+  image: string | null;
   verify: boolean;
   isPublic: boolean;
   createdAt: string;
-  roles: Array<{ authority: string }>;
+  roles: { authority: string } | null;
   posts: Array<{
     id: string;
     title: string;
-    category: string;
+    category: {
+      key: string;
+      name: string;
+    };
     createdAt: string;
+    count: {
+      comments: number;
+      likes: number;
+    };
+  }>;
+  comments: Array<{
+    id: string;
+    context: string;
+    createdAt: string;
+    posts: {
+      id: string;
+      title: string;
+    };
   }>;
   count: {
     posts: number;
@@ -26,32 +43,80 @@ type UserObject = {
 
 export default function MyPage() {
   const navigate = useNavigate();
-  const [isSession] = useState<string | null>(() =>
-    getWithExpiry("access_token"),
-  );
+  const isSession = getWithExpiry("ack");
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [user, setUser] = useState<UserObject>();
+  const [user, setUser] = useState<TUserObject>();
+  const [userImage, setUserImage] = useState<string | null>(null);
+  const [receiveLikes, setReceiveLikes] = useState<number>(0);
+
+  const handlerDisableAccount = async () => {
+    if (!isSession) {
+      alert("로그인이 필요한 페이지입니다.");
+      navigate("/signin");
+      return;
+    }
+
+    const message = confirm("회원 탈퇴를 진행하시겠습니까?");
+
+    if (!message) return;
+
+    await fetch("/api/users/remove", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${isSession}`,
+      },
+    })
+      .then(async (res) => {
+        if (res.status > 200 && res.status < 500) {
+          const response = await res.json();
+          alert(response.error || response.message);
+          setIsLoading(false);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
+        } else {
+          return res;
+        }
+      })
+      .then(async (res) => {
+        if (res?.ok) {
+          setIsLoading(false);
+          removeSession("ack");
+          removeSession("ref");
+          alert("회원 탈퇴가 완료되었습니다.");
+
+          navigate("/");
+
+          window.location.reload();
+          return res;
+        }
+      });
+  };
 
   useEffect(() => {
     if (!isSession) {
       alert("로그인이 필요한 페이지입니다.");
-      navigate("/login");
+      navigate("/signin");
       return;
     }
 
-    const getUser = async () => {
+    const requestGetUser = async () => {
       await fetch("/api/users/info", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${isSession}`,
+          Authorization: `${isSession}`,
         },
       })
         .then(async (res) => {
-          if (res.status > 200) {
+          if (res.status > 200 && res.status < 500) {
             const response = await res.json();
-            alert(response.message);
+            alert(response.error || response.message);
             setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
           } else {
             return res;
           }
@@ -61,57 +126,45 @@ export default function MyPage() {
             setIsLoading(false);
             const response = await res.json();
             setUser(response.data);
+            setUserImage(imageDecodeToUrl(response.data.image));
             return res;
           }
         });
     };
 
-    getUser();
+    const requestReceiveLikes = async () => {
+      await fetch("/api/users/received/likes", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${isSession}`,
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setReceiveLikes(response.count);
+            return res;
+          }
+        });
+    };
+
+    requestGetUser();
+    requestReceiveLikes();
   }, [isSession, navigate]);
-
-  console.log("test: ", user);
-
-  const myPosts = [
-    {
-      id: 1,
-      category: "GAME",
-      title: "마인크래프트 서버 공지 UI 구성 팁 정리",
-      createdAt: "2026.05.18",
-      comments: 14,
-      likes: 38,
-    },
-    {
-      id: 2,
-      category: "FREE",
-      title: "Prisma 스키마 설계할 때 자주 하는 실수들",
-      createdAt: "2026.05.15",
-      comments: 9,
-      likes: 21,
-    },
-    {
-      id: 3,
-      category: "SPORTS",
-      title: "러닝 시작 2주차 후기",
-      createdAt: "2026.05.11",
-      comments: 4,
-      likes: 11,
-    },
-  ];
-
-  const recentComments = [
-    {
-      id: 1,
-      postTitle: "요즘 할만한 협동 게임 추천",
-      content: "개인적으로 난이도 낮은 협동 게임이면 이쪽도 괜찮았어요.",
-      createdAt: "1시간 전",
-    },
-    {
-      id: 2,
-      postTitle: "게시판 카테고리 구조 고민",
-      content: "처음에는 카테고리를 너무 많이 나누지 않는 게 좋아 보여요.",
-      createdAt: "어제",
-    },
-  ];
 
   return (
     <div className="mypage">
@@ -122,7 +175,15 @@ export default function MyPage() {
           <div className="mypage-header">
             <div className="profile-card">
               <div className="profile-main">
-                <div className="profile-avatar">C</div>
+                <div className="profile-avatar">
+                  {userImage ? (
+                    <img src={userImage} />
+                  ) : (
+                    <span className="profile-avatar-text">
+                      {user?.nickname?.charAt(0).toUpperCase() || "C"}
+                    </span>
+                  )}
+                </div>
 
                 <div className="profile-copy">
                   <span className="profile-badge">MY PROFILE</span>
@@ -134,7 +195,7 @@ export default function MyPage() {
 
                   <div className="profile-meta">
                     <span>USER ID · {user?.id}</span>
-                    <span>{user?.roles[0].authority}</span>
+                    <span>{user?.roles?.authority}</span>
                     <span>
                       {user?.isPublic ? "공개 프로필" : "비공개 프로필"}
                     </span>
@@ -143,7 +204,12 @@ export default function MyPage() {
               </div>
 
               <div className="profile-actions">
-                <button className="mypage-primary-btn">프로필 수정</button>
+                <button
+                  className="mypage-primary-btn"
+                  onClick={() => navigate("/users/profile/edit")}
+                >
+                  프로필 수정
+                </button>
               </div>
             </div>
 
@@ -157,7 +223,7 @@ export default function MyPage() {
                 <span>작성한 댓글</span>
               </article>
               <article className="summary-card">
-                <strong>389</strong>
+                <strong>{receiveLikes}</strong>
                 <span>받은 좋아요</span>
               </article>
               <article className="summary-card">
@@ -172,17 +238,23 @@ export default function MyPage() {
               <section className="panel">
                 <div className="section-head">
                   <h2>내 게시글</h2>
-                  <a href="/posts">전체 보기</a>
+                  <a href="/users/posts">전체 보기</a>
                 </div>
 
                 <div className="post-list">
                   {user?.posts.map((post) => (
-                    <article className="post-item" key={post.id}>
+                    <article
+                      className="post-item"
+                      key={post.id}
+                      onClick={() =>
+                        navigate(`/posts/${encodeURIComponent(post.id)}`)
+                      }
+                    >
                       <div className="post-item-top">
                         <span
-                          className={`category ${post.category.toLowerCase()}`}
+                          className={`category ${post.category.key.toLowerCase()}`}
                         >
-                          {post.category}
+                          {post.category.name}
                         </span>
                         <span className="date">{post.createdAt}</span>
                       </div>
@@ -190,8 +262,8 @@ export default function MyPage() {
                       <h3>{post.title}</h3>
 
                       <div className="post-item-meta">
-                        {/* <span>댓글 {post.comments}</span>
-                        <span>좋아요 {post.likes}</span> */}
+                        <span>댓글 {post.count.comments}</span>
+                        <span>좋아요 {post.count.likes}</span>
                       </div>
                     </article>
                   ))}
@@ -201,14 +273,22 @@ export default function MyPage() {
               <section className="panel">
                 <div className="section-head">
                   <h2>최근 댓글</h2>
-                  <a href="/">전체 보기</a>
+                  <a href="/users/comments">전체 보기</a>
                 </div>
 
                 <div className="comment-list">
-                  {recentComments.map((comment) => (
-                    <article className="comment-item" key={comment.id}>
-                      <strong>{comment.postTitle}</strong>
-                      <p>{comment.content}</p>
+                  {user?.comments.map((comment) => (
+                    <article
+                      className="comment-item"
+                      key={comment.id}
+                      onClick={() =>
+                        navigate(
+                          `/posts/${encodeURIComponent(comment.posts.id)}`,
+                        )
+                      }
+                    >
+                      <strong>{comment.posts.title}</strong>
+                      <p>{comment.context}</p>
                       <span>{comment.createdAt}</span>
                     </article>
                   ))}
@@ -217,7 +297,7 @@ export default function MyPage() {
             </div>
 
             <aside className="mypage-side">
-              <section className="panel side-panel">
+              <section className="mypage-panel side-panel">
                 <div className="section-head">
                   <h2>계정 상태</h2>
                 </div>
@@ -233,21 +313,27 @@ export default function MyPage() {
                   </div>
                   <div>
                     <span>권한</span>
-                    <strong>{user?.roles[0].authority}</strong>
+                    <strong>{user?.roles?.authority}</strong>
                   </div>
                 </div>
               </section>
 
-              <section className="panel side-panel">
+              <section className="mypage-panel side-panel">
                 <div className="section-head">
                   <h2>빠른 메뉴</h2>
                 </div>
 
                 <div className="quick-menu">
-                  <button>내 정보 수정</button>
-                  <button>비밀번호 변경</button>
-                  <button>작성 글 관리</button>
-                  <button>회원 탈퇴</button>
+                  <button onClick={() => navigate("/users/edit")}>
+                    내 정보 수정
+                  </button>
+                  <button onClick={() => navigate("/auth/password/forgot")}>
+                    비밀번호 변경
+                  </button>
+                  <button onClick={() => navigate("/users/posts")}>
+                    작성 글 관리
+                  </button>
+                  <button onClick={handlerDisableAccount}>회원 탈퇴</button>
                 </div>
               </section>
 
