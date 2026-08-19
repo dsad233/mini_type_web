@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
-import { getWithExpiry } from "./utils";
+import { getWithExpiry, imageDecodeToUrl } from "./utils";
 import { Loading } from "./components";
 
 type TCategoriesRes = {
@@ -10,28 +10,90 @@ type TCategoriesRes = {
   count: number;
 };
 
-type Posts = {
+type TPosts = {
   id: string;
   title: string;
   context: string | null;
-  category: string;
+  category: {
+    key: string;
+    name: string;
+  };
   createdAt: string;
   users: { nickname: string; image: string | null };
+  count: {
+    views: number;
+    likes: number;
+    comments: number;
+  };
 }[];
+
+type TodayCounts = {
+  users: number;
+  posts: number;
+  comments: number;
+  likes: number;
+};
+
+type TPopulerUsers = {
+  nickname: string;
+  posts: number;
+  role: string;
+};
 
 export default function App() {
   const navigate = useNavigate();
-  const [isSession] = useState<string | null>(() =>
-    getWithExpiry("access_token"),
-  );
+  const isSession = getWithExpiry("ack");
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
+  const [inputSearch, setInputSearch] = useState<string>("");
   const [categories, setCategories] = useState<Array<TCategoriesRes>>([]);
-  const [posts, setPosts] = useState<Posts>([]);
+  const [selectCategory, setSelectCategory] = useState<string>("");
+  const [posts, setPosts] = useState<TPosts>([]);
+  const [userCount, setUserCount] = useState<number>(0);
+  const [commentCount, setCommentCount] = useState<number>(0);
+  const [todayCounts, setTodayCounts] = useState<TodayCounts>({
+    users: 0,
+    posts: 0,
+    comments: 0,
+    likes: 0,
+  });
+
+  const [populerUsers, setPopulerUsers] = useState<Array<TPopulerUsers>>([]);
+
+  const handlerSearch = async () => {
+    await fetch(
+      `/api/posts?page=1&pages=4&isPublic=ALL&orderBy=NEW&search=${inputSearch}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    )
+      .then(async (res) => {
+        if (res.status > 200 && res.status < 500) {
+          const response = await res.json();
+          alert(response.error || response.message);
+          setIsLoading(false);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
+        } else {
+          return res;
+        }
+      })
+      .then(async (res) => {
+        if (res?.ok) {
+          setIsLoading(false);
+          const response = await res.json();
+          setPosts(response.data.posts);
+          return res;
+        }
+      });
+  };
 
   useEffect(() => {
-    const requestCounts = async () => {
+    const requestCategory = async () => {
       await fetch("/api/posts/count/category", {
         method: "GET",
         headers: {
@@ -39,11 +101,13 @@ export default function App() {
         },
       })
         .then(async (res) => {
-          if (res.status > 200) {
+          if (res.status > 200 && res.status < 500) {
             const response = await res.json();
-            console.log("test: ", response);
-            alert(response.message);
+            alert(response.error || response.message);
             setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
           } else {
             return res;
           }
@@ -59,18 +123,21 @@ export default function App() {
     };
 
     const requestPosts = async () => {
-      await fetch("/api/posts?page=1&pages=4&isPublic=ALL&orderby=NEW", {
+      await fetch(`/api/posts?page=1&pages=5&isPublic=ALL&orderBy=NEW`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
       })
         .then(async (res) => {
-          if (res.status > 200) {
+          if (res.status > 200 && res.status < 500) {
             const response = await res.json();
-            console.log("response: ", response);
-            alert(response.message);
+            alert(response.error || response.message);
             setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
           } else {
             return res;
           }
@@ -85,15 +152,129 @@ export default function App() {
         });
     };
 
-    requestCounts();
-    requestPosts();
-  }, []);
+    const requestUserCount = async () => {
+      await fetch("/api/globals/users/count", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setUserCount(response.count);
+            return res;
+          }
+        });
+    };
 
-  const topUsers = [
-    { nickname: "craft_lab", role: "ADMIN", posts: 42 },
-    { nickname: "pixel_fox", role: "USER", posts: 27 },
-    { nickname: "dev_moon", role: "ADMIN", posts: 19 },
-  ];
+    const requestCommentCount = async () => {
+      await fetch("/api/globals/comments/count", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setCommentCount(response.count);
+            return res;
+          }
+        });
+    };
+
+    const requestTodayCounts = async () => {
+      await fetch("/api/globals/todays/count", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setTodayCounts(response.data);
+            return res;
+          }
+        });
+    };
+
+    const requestPopulerUsers = async () => {
+      await fetch("/api/globals/populars/post", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setPopulerUsers(response.data);
+            return res;
+          }
+        });
+    };
+
+    requestCategory();
+    requestPosts();
+    requestUserCount();
+    requestCommentCount();
+    requestTodayCounts();
+    requestPopulerUsers();
+  }, [inputSearch]);
 
   return (
     <>
@@ -115,22 +296,31 @@ export default function App() {
                   <input
                     type="text"
                     placeholder="게시글, 닉네임, 카테고리 검색"
+                    onChange={(e) => setInputSearch(e.target.value)}
                   />
-                  <button>검색</button>
+                  <button onClick={handlerSearch}>검색</button>
                 </div>
               </div>
 
               <div className="hero-stats">
                 <div className="stat-card">
-                  <strong>1,024</strong>
+                  <strong>
+                    {userCount.toLocaleString("ko-KR", {
+                      maximumFractionDigits: 4,
+                    })}
+                  </strong>
                   <span>전체 사용자</span>
                 </div>
                 <div className="stat-card">
-                  <strong>404</strong>
+                  <strong>{todayCounts.posts}</strong>
                   <span>오늘 게시글</span>
                 </div>
                 <div className="stat-card">
-                  <strong>1,892</strong>
+                  <strong>
+                    {commentCount.toLocaleString("ko-KR", {
+                      maximumFractionDigits: 4,
+                    })}
+                  </strong>
                   <span>전체 댓글</span>
                 </div>
               </div>
@@ -141,12 +331,18 @@ export default function App() {
                 <section className="panel">
                   <div className="section-header">
                     <h3>카테고리</h3>
-                    <a href="/">전체 보기</a>
+                    {/* <a href="/">전체 보기</a> */}
                   </div>
 
                   <div className="category-grid">
                     {categories.map((category) => (
-                      <article key={category.key} className="category-card">
+                      <article
+                        key={category.key}
+                        className="category-card"
+                        // onClick={() => {
+                        //   navigate(`/posts?category=${category.key}`);
+                        // }}
+                      >
                         <span className="category-key">{category.key}</span>
                         <strong>{category.name}</strong>
                         <p>{category.count}개의 게시글</p>
@@ -170,9 +366,9 @@ export default function App() {
                       >
                         <div className="post-top">
                           <span
-                            className={`post-category ${post.category.toLowerCase()}`}
+                            className={`post-category ${post.category.key.toLowerCase()}`}
                           >
-                            {post.category}
+                            {post.category.name}
                           </span>
                           <span className="post-time">{post.createdAt}</span>
                         </div>
@@ -183,17 +379,27 @@ export default function App() {
                         <div className="post-bottom">
                           <div className="author-info">
                             <div className="avatar">
-                              {post.users.nickname.charAt(0).toUpperCase()}
+                              {post.users.image ? (
+                                <img
+                                  src={
+                                    imageDecodeToUrl(post.users.image) as string
+                                  }
+                                />
+                              ) : (
+                                <span className="avatar-text">
+                                  {post.users.nickname.charAt(0).toUpperCase()}
+                                </span>
+                              )}
                             </div>
                             <div>
                               <strong>{post.users.nickname}</strong>
                             </div>
                           </div>
 
-                          {/* <div className="post-meta">
-                            <span>댓글 {post.comments}</span>
-                            <span>좋아요 {post.likes}</span>
-                          </div> */}
+                          <div className="post-meta">
+                            <span>댓글 {post.count.comments}</span>
+                            <span>좋아요 {post.count.likes}</span>
+                          </div>
                         </div>
                       </article>
                     ))}
@@ -208,7 +414,7 @@ export default function App() {
                   </div>
 
                   <div className="user-rank-list">
-                    {topUsers.map((user, index) => (
+                    {populerUsers.map((user, index) => (
                       <div key={user.nickname} className="user-rank-item">
                         <span className="rank">#{index + 1}</span>
                         <div>
@@ -229,28 +435,18 @@ export default function App() {
 
                   <div className="mini-stats">
                     <div>
-                      <strong>76</strong>
+                      <strong>{todayCounts.comments}</strong>
                       <span>새 댓글</span>
                     </div>
                     <div>
-                      <strong>29</strong>
+                      <strong>{todayCounts.users}</strong>
                       <span>새 회원</span>
                     </div>
                     <div>
-                      <strong>143</strong>
+                      <strong>{todayCounts.likes}</strong>
                       <span>좋아요</span>
                     </div>
                   </div>
-                </section>
-
-                <section className="panel side-panel highlight-panel">
-                  <span className="badge">START NOW</span>
-                  <h3>첫 게시글을 작성해보세요</h3>
-                  <p>
-                    닉네임 기반 커뮤니티 구조라 가볍게 참여하기 좋고,
-                    카테고리별로 빠르게 소통할 수 있습니다.
-                  </p>
-                  <button className="primary-btn full">게시글 작성하기</button>
                 </section>
               </aside>
             </section>
