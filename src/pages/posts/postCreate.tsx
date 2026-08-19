@@ -1,72 +1,451 @@
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import { Dropcursor } from "@tiptap/extension-dropcursor";
+import { TextSelection } from "@tiptap/pm/state";
 import "../../styles/posts/postCreate.css";
-import { useEffect, useState } from "react";
 import { getWithExpiry } from "@src/utils";
 import { Loading } from "@src/components";
 
+type TPendingImage = {
+  id: string;
+  file: File;
+  previewUrl: string;
+  base64: string;
+};
+
+const CustomImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+
+      imageId: {
+        default: null,
+
+        parseHTML: (element) => {
+          return element.getAttribute("data-image-id");
+        },
+
+        renderHTML: (attributes) => {
+          if (!attributes.imageId) {
+            return {};
+          }
+
+          return {
+            "data-image-id": attributes.imageId,
+          };
+        },
+      },
+
+      width: {
+        default: null,
+
+        parseHTML: (element) => {
+          return (
+            element.getAttribute("data-width") ||
+            element.getAttribute("width") ||
+            element.style.width ||
+            null
+          );
+        },
+
+        renderHTML: (attributes) => {
+          if (!attributes.width) {
+            return {};
+          }
+
+          return {
+            "data-width": attributes.width,
+          };
+        },
+      },
+    };
+  },
+});
+
 export default function PostCreate() {
   const navigate = useNavigate();
-  const [isSession] = useState<string | null>(() =>
-    getWithExpiry("access_token"),
-  );
+  const isSession = getWithExpiry("ack");
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [title, setTitle] = useState<string>("");
   const [category, setCategory] = useState<string>("FREE");
   const [isPublic, setIsPublic] = useState<string>("TRUE");
-  const [context, setContext] = useState<string>("");
-  const [imageUrl, setImageUrl] = useState<string>();
+
+  const [pendingImages, setPendingImages] = useState<TPendingImage[]>([]);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+
+      Dropcursor.configure({
+        color: "#6366f1",
+        width: 3,
+      }),
+
+      CustomImage.configure({
+        inline: false,
+        allowBase64: false,
+
+        resize: {
+          enabled: true,
+          directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
+          minWidth: 120,
+          minHeight: 80,
+          alwaysPreserveAspectRatio: true,
+        },
+      }),
+    ],
+
+    content: "<p></p>",
+  });
+
+  const clearImageSelection = () => {
+    if (!editor) {
+      return;
+    }
+
+    const { state, view } = editor;
+
+    if (!state.selection.node) {
+      return;
+    }
+
+    const selectionPosition = Math.min(
+      state.selection.from,
+      state.doc.content.size,
+    );
+
+    view.dispatch(
+      state.tr.setSelection(
+        TextSelection.near(state.doc.resolve(selectionPosition)),
+      ),
+    );
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        const base64 = dataUrl.split(",")[1];
+
+        if (!base64) {
+          reject(new Error("이미지 Base64 변환에 실패했습니다."));
+          return;
+        }
+
+        resolve(base64);
+      };
+
+      reader.onerror = () => {
+        reject(new Error("이미지 파일을 읽지 못했습니다."));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleChooseImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 선택할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+
+    const maxFileSize = 5 * 1024 * 1024;
+
+    if (file.size > maxFileSize) {
+      alert("이미지는 5MB 이하만 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+
+    if (!editor) {
+      alert("에디터를 불러오는 중입니다.");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const base64 = await fileToBase64(file);
+
+      const id = crypto.randomUUID();
+      const previewUrl = URL.createObjectURL(file);
+
+      setPendingImages((previous) => [
+        ...previous,
+        {
+          id,
+          file,
+          previewUrl,
+          base64,
+        },
+      ]);
+
+      editor
+        .chain()
+        .focus()
+        .setImage({
+          src: previewUrl,
+          alt: file.name,
+          imageId: id,
+        })
+        .run();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "이미지 처리 중 오류가 발생했습니다.";
+
+      alert(message);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const convertEditorHtmlToRequestData = (html: string) => {
+    const documentNode = new DOMParser().parseFromString(html, "text/html");
+
+    /*
+      중요:
+      Enter를 두 번 눌러 만든 빈 문단은 getHTML()에서 <p></p>가 됩니다.
+      빈 p는 상세 화면에서 높이가 사라질 수 있으므로 &nbsp;로 보존합니다.
+
+      예:
+      <p>test</p><p></p><p>dsdadd</p>
+
+      저장 후:
+      <p>test</p><p>&nbsp;</p><p>dsdadd</p>
+    */
+    const paragraphElements =
+      documentNode.querySelectorAll<HTMLParagraphElement>("p");
+
+    paragraphElements.forEach((paragraphElement) => {
+      const text = paragraphElement.textContent?.trim() ?? "";
+      const hasChildElement = paragraphElement.children.length > 0;
+
+      if (!text && !hasChildElement) {
+        paragraphElement.innerHTML = "&nbsp;";
+      }
+    });
+
+    const imageElements =
+      documentNode.querySelectorAll<HTMLImageElement>("img");
+
+    const images: string[] = [];
+
+    imageElements.forEach((imageElement) => {
+      const imageId = imageElement.getAttribute("data-image-id");
+
+      /*
+        imageId가 없는 이미지는 외부 URL 등입니다.
+        생성 화면에서는 보통 없지만 그대로 유지합니다.
+      */
+      if (!imageId) {
+        return;
+      }
+
+      const pendingImage = pendingImages.find((image) => image.id === imageId);
+
+      /*
+        사용자가 에디터에서 삭제한 새 이미지라면
+        최종 context에서도 제거합니다.
+      */
+      if (!pendingImage) {
+        imageElement.remove();
+        return;
+      }
+
+      const imageIndex = images.length;
+
+      images.push(pendingImage.base64);
+
+      /*
+        Blob URL은 현재 브라우저에서만 유효하므로
+        context에는 images 배열을 가리키는 참조값을 저장합니다.
+      */
+      imageElement.setAttribute("src", `image://${imageIndex}`);
+
+      const savedWidth =
+        imageElement.getAttribute("data-width") ||
+        imageElement.getAttribute("width") ||
+        imageElement.style.width;
+
+      if (savedWidth) {
+        const width = savedWidth.endsWith("%")
+          ? savedWidth
+          : savedWidth.endsWith("px")
+            ? savedWidth
+            : `${savedWidth}px`;
+
+        imageElement.setAttribute("data-width", width);
+        imageElement.style.width = width;
+      }
+
+      const savedHeight =
+        imageElement.getAttribute("data-height") ||
+        imageElement.getAttribute("height") ||
+        imageElement.style.height;
+
+      if (savedHeight) {
+        const height = savedHeight.endsWith("%")
+          ? savedHeight
+          : savedHeight.endsWith("px")
+            ? savedHeight
+            : `${savedHeight}px`;
+
+        imageElement.setAttribute("data-height", height);
+        imageElement.style.height = height;
+      }
+
+      /*
+        프론트에서만 사용하는 임시 식별자는 저장하지 않습니다.
+      */
+      imageElement.removeAttribute("data-image-id");
+    });
+
+    return {
+      context: documentNode.body.innerHTML,
+      images,
+    };
+  };
+
+  const revokePreviewUrls = () => {
+    pendingImages.forEach((pendingImage) => {
+      URL.revokeObjectURL(pendingImage.previewUrl);
+    });
+  };
 
   const handlePostCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    await fetch("/api/posts", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${isSession}`,
-      },
-      body: JSON.stringify({
-        title: title,
-        context: context,
-        image: imageUrl,
-        isPublic: isPublic,
-        category: category,
-      }),
-    })
-      .then(async (res) => {
-        if (res.status > 201) {
-          const response = await res.json();
-          alert(response.message);
-          setIsLoading(false);
-        } else {
-          return res;
-        }
-      })
-      .then((res) => {
-        if (res?.ok) {
-          setIsLoading(false);
-          alert("게시글이 등록되었습니다.");
-          navigate("/posts");
-          return res;
-        }
+    if (!isSession) {
+      alert("로그인이 필요한 페이지입니다.");
+      navigate("/signin");
+      return;
+    }
+
+    if (!editor) {
+      alert("에디터를 불러오는 중입니다.");
+      return;
+    }
+
+    if (!title.trim()) {
+      alert("제목을 입력해주세요.");
+      return;
+    }
+
+    if (editor.isEmpty) {
+      alert("본문을 입력해주세요.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const htmlWithPreviewUrls = editor.getHTML();
+
+      const { context, images } =
+        convertEditorHtmlToRequestData(htmlWithPreviewUrls);
+
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${isSession}`,
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          context,
+          category,
+          isPublic,
+          images,
+        }),
       });
+
+      const response = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          response.error || response.message || "게시글 등록에 실패했습니다.",
+        );
+      }
+
+      revokePreviewUrls();
+
+      alert("게시글이 등록되었습니다.");
+      navigate("/posts");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "게시글 등록 중 오류가 발생했습니다.";
+
+      alert(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
     if (!isSession) {
       alert("로그인이 필요한 페이지입니다.");
-      navigate("/login");
+      navigate("/signin");
       return;
     }
 
-    const load = async () => {
+    const loading = async () => {
       setIsLoading(false);
     };
 
-    load();
+    loading();
   }, [isSession, navigate]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+
+      if (!editor.view.dom.contains(target)) {
+        clearImageSelection();
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    return () => {
+      pendingImages.forEach((pendingImage) => {
+        URL.revokeObjectURL(pendingImage.previewUrl);
+      });
+    };
+  }, [pendingImages]);
 
   return (
     <>
@@ -77,24 +456,38 @@ export default function PostCreate() {
           <section className="create-post-shell">
             <aside className="create-post-aside">
               <span className="create-post-badge">WRITE POST</span>
+
               <h1>새 게시글 작성</h1>
+
               <p>
-                커뮤니티에 공유하고 싶은 이야기, 질문, 정보, 후기를 자유롭게
+                텍스트와 이미지를 자유롭게 배치해서 나만의 게시글을
                 작성해보세요.
               </p>
 
               <div className="create-post-guide">
                 <div className="create-post-guide-item">
-                  <strong>제목은 구체적으로</strong>
-                  <span>무엇에 대한 글인지 한눈에 알 수 있게 적어주세요.</span>
+                  <strong>이미지를 본문에 추가</strong>
+
+                  <span>
+                    원하는 위치에 커서를 둔 뒤 이미지 추가 버튼을 눌러주세요.
+                  </span>
                 </div>
+
                 <div className="create-post-guide-item">
-                  <strong>본문은 읽기 쉽게</strong>
-                  <span>문단을 나눠 작성하면 더 읽기 쉬워집니다.</span>
+                  <strong>크기와 위치 조절</strong>
+
+                  <span>
+                    이미지를 클릭하면 네 모서리에 표시되는 점을 드래그해 크기를
+                    바꿀 수 있습니다.
+                  </span>
                 </div>
+
                 <div className="create-post-guide-item">
-                  <strong>카테고리를 맞게 선택</strong>
-                  <span>FREE, SPORTS, GAME 중 맞는 주제를 골라주세요.</span>
+                  <strong>줄바꿈과 공백 유지</strong>
+
+                  <span>
+                    엔터로 만든 빈 줄과 문단 간격도 게시글에 그대로 저장됩니다.
+                  </span>
                 </div>
               </div>
             </aside>
@@ -107,51 +500,58 @@ export default function PostCreate() {
                 <span className="create-post-badge create-post-badge--soft">
                   POST FORM
                 </span>
+
                 <h2 id="create-post-title">게시글 정보</h2>
-                <p>필수 정보를 입력한 뒤 공개 여부를 선택하고 등록하세요.</p>
+
+                <p>이미지, 문단, 빈 줄을 작성한 그대로 저장할 수 있습니다.</p>
               </div>
 
               <form className="create-post-form" onSubmit={handlePostCreate}>
                 <div className="create-post-field">
                   <label htmlFor="title">제목</label>
+
                   <input
                     id="title"
                     name="title"
                     type="text"
-                    placeholder="예: Prisma 스키마 설계할 때 주의할 점 정리"
+                    placeholder="예: 여행 사진과 함께 남기는 후기"
+                    value={title}
                     onChange={(e) => setTitle(e.target.value)}
+                    disabled={isSubmitting}
                   />
-                  <small>
-                    제목만 보고도 글의 주제를 이해할 수 있게 작성해주세요.
-                  </small>
                 </div>
 
                 <div className="create-post-row">
                   <div className="create-post-field">
                     <label htmlFor="category">카테고리</label>
+
                     <select
                       id="category"
                       name="category"
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
+                      disabled={isSubmitting}
                     >
-                      <option value="FREE">FREE</option>
-                      <option value="SPORTS">SPORTS</option>
-                      <option value="GAME">GAME</option>
+                      <option value="FREE">자유</option>
+                      <option value="SPORTS">스포츠</option>
+                      <option value="GAME">게임</option>
                     </select>
                   </div>
 
                   <div className="create-post-field">
                     <span className="create-post-label">공개 여부</span>
+
                     <div className="create-post-radio-group">
                       <label className="create-post-radio">
                         <input
                           type="radio"
                           name="isPublic"
                           value="TRUE"
-                          defaultChecked
+                          checked={isPublic === "TRUE"}
                           onChange={(e) => setIsPublic(e.target.value)}
+                          disabled={isSubmitting}
                         />
+
                         <span>공개</span>
                       </label>
 
@@ -160,8 +560,11 @@ export default function PostCreate() {
                           type="radio"
                           name="isPublic"
                           value="FALSE"
+                          checked={isPublic === "FALSE"}
                           onChange={(e) => setIsPublic(e.target.value)}
+                          disabled={isSubmitting}
                         />
+
                         <span>비공개</span>
                       </label>
                     </div>
@@ -169,48 +572,61 @@ export default function PostCreate() {
                 </div>
 
                 <div className="create-post-field">
-                  <label htmlFor="context">본문</label>
-                  <textarea
-                    id="context"
-                    name="context"
-                    placeholder="내용을 입력해주세요."
-                    rows={14}
-                    onChange={(e) => setContext(e.target.value)}
-                  />
-                  <small>
-                    질문, 정보, 후기 등 자유롭게 작성할 수 있으며 줄바꿈과 문단
-                    구분을 권장합니다.
-                  </small>
-                </div>
+                  <div className="create-post-editor-head">
+                    <label>본문</label>
 
-                <div className="create-post-field">
-                  <label htmlFor="image">대표 이미지 URL</label>
-                  <input
-                    id="image"
-                    name="image"
-                    type="url"
-                    placeholder="https://example.com/image.jpg"
-                    onChange={(e) => setImageUrl(e.target.value)}
-                  />
-                  <small>
-                    선택 항목입니다. 이미지가 있다면 게시글 가독성이 좋아집니다.
-                  </small>
-                </div>
+                    <button
+                      type="button"
+                      className="create-post-image-upload-btn"
+                      onClick={handleChooseImage}
+                      disabled={isSubmitting}
+                    >
+                      이미지 추가
+                    </button>
 
-                <div className="create-post-preview">
-                  <span className="create-post-preview-badge">미리 확인</span>
-                  <p>
-                    게시글 등록 전 제목, 카테고리, 공개 여부를 한 번 더
-                    확인해주세요.
-                  </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleImageSelect}
+                      disabled={isSubmitting}
+                      hidden
+                    />
+                  </div>
+
+                  <div
+                    className="post-rich-editor"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) {
+                        clearImageSelection();
+                      }
+                    }}
+                  >
+                    <EditorContent editor={editor} />
+                  </div>
+
+                  <small>
+                    엔터를 두 번 누르면 빈 줄이 저장됩니다. 이미지는 클릭 후
+                    모서리를 드래그해 크기를 조절할 수 있습니다.
+                  </small>
                 </div>
 
                 <div className="create-post-actions">
-                  <button type="button" className="create-post-cancel-btn">
+                  <button
+                    type="button"
+                    className="create-post-cancel-btn"
+                    onClick={() => navigate(-1)}
+                    disabled={isSubmitting}
+                  >
                     취소
                   </button>
-                  <button type="submit" className="create-post-submit-btn">
-                    게시글 등록
+
+                  <button
+                    type="submit"
+                    className="create-post-submit-btn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "게시글 등록 중..." : "게시글 등록"}
                   </button>
                 </div>
               </form>

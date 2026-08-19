@@ -1,40 +1,53 @@
 import { useEffect, useState } from "react";
 import "../../styles/posts/posts.css";
 import { useNavigate } from "react-router-dom";
-import { getWithExpiry } from "@src/utils";
+import { getVisiblePages, getWithExpiry, imageDecodeToUrl } from "@src/utils";
 import { Loading } from "@src/components";
+import Pagination from "@src/components/pagination";
 
-type Posts = {
+type TPosts = {
   id: string;
   title: string;
   context: string | null;
-  category: string;
+  category: {
+    key: string;
+    name: string;
+  };
   createdAt: string;
   users: { nickname: string; image: string | null };
+  count: {
+    comments: number;
+    likes: number;
+    views: number;
+  };
 }[];
 
-export type OrderBy = {
+export type TOrderBy = {
   NEW: string;
   POPULAR: string;
   COMMENTS: string;
   VIEWS: string;
 };
 
+export type TCategory = {
+  key: string;
+  name: string;
+};
+
 export default function Posts() {
   const navigate = useNavigate();
-  const [isSession] = useState<string | null>(() =>
-    getWithExpiry("access_token"),
-  );
+  const isSession = getWithExpiry("ack");
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // const [user, setUser] = useState<>();
 
-  const [posts, setPosts] = useState<Posts>([]);
+  const [posts, setPosts] = useState<TPosts>([]);
   const [count, setCount] = useState<number>(0);
-  const [categories, setCategories] = useState<Array<string>>([]);
+  const [categories, setCategories] = useState<Array<TCategory>>([]);
+  const [inputSearch, setInputSearch] = useState<string>("");
   const [selectCategory, setSelectCategory] = useState<string>("ALL");
   const [selectIsPublic, setSelectIsPublic] = useState<string>("PUBLIC");
   const [selectOrder, setSelectOrder] = useState<string>("NEW");
-  const [inputSearch, setInputSearch] = useState<string>("");
+  const [todayNewPosts, setTodayNewPosts] = useState<number>(0);
+  const [popularCategory, setPopularCategory] = useState<number>(0);
 
   const [page, setPage] = useState<number>(1);
   const [pages, setPages] = useState<number>(10);
@@ -42,22 +55,28 @@ export default function Posts() {
   const totalPages = Math.ceil(count / pages);
 
   useEffect(() => {
-    const post = async () => {
+    const requestPosts = async () => {
       await fetch(
-        `/api/posts?page=${page}&pages=${pages}&search=${inputSearch}&category=${selectCategory}&isPublic=${selectIsPublic}&orderby=${selectOrder}`,
+        `/api/posts?page=${encodeURIComponent(page)}&pages=${encodeURIComponent(pages)}&search=${encodeURIComponent(inputSearch)}&category=${encodeURIComponent(selectCategory)}&isPublic=${encodeURIComponent(selectIsPublic)}&orderBy=${encodeURIComponent(selectOrder)}`,
         {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${isSession}`,
+            Authorization: `${isSession}`,
           },
+          credentials: "include",
         },
       )
         .then(async (res) => {
-          if (res.status > 200) {
+          if (res.status > 200 && res.status < 500) {
             const response = await res.json();
-            alert(response.message);
+            alert(response.error || response.message);
             setIsLoading(false);
+          } else if (res.status >= 500) {
+            const response = await res.json();
+            console.log("response: ", response);
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
           } else {
             return res;
           }
@@ -67,39 +86,14 @@ export default function Posts() {
             setIsLoading(false);
             const response = await res.json();
             setPosts(response.data?.posts);
+            setCount(response.data?.paginations.count);
             setPage(response.data?.paginations.page);
             setPages(response.data?.paginations.pages);
             return res;
           }
         });
     };
-    const postCount = async () => {
-      await fetch("/api/posts/count", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-        .then(async (res) => {
-          if (res.status > 200) {
-            const response = await res.json();
-            alert(response.message);
-            setIsLoading(false);
-          } else {
-            return res;
-          }
-        })
-        .then(async (res) => {
-          if (res?.ok) {
-            setIsLoading(false);
-            const response = await res.json();
-            setCount(response.count);
-            return res;
-          }
-        });
-    };
-
-    const category = async () => {
+    const requestCategories = async () => {
       await fetch("/api/posts/categories", {
         method: "GET",
         headers: {
@@ -107,10 +101,13 @@ export default function Posts() {
         },
       })
         .then(async (res) => {
-          if (res.status > 200) {
+          if (res.status > 200 && res.status < 500) {
             const response = await res.json();
-            alert(response.message);
+            alert(response.error || response.message);
             setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
           } else {
             return res;
           }
@@ -125,9 +122,68 @@ export default function Posts() {
         });
     };
 
-    post();
-    postCount();
-    category();
+    const todayPostsCount = async () => {
+      await fetch("/api/globals/todays/post/count", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setTodayNewPosts(response.count);
+            return res;
+          }
+        });
+    };
+
+    const requestPopularCategory = async () => {
+      await fetch("/api/categories/popular", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+        .then(async (res) => {
+          if (res.status > 200 && res.status < 500) {
+            const response = await res.json();
+            alert(response.error || response.message);
+            setIsLoading(false);
+          } else if (res.status >= 500) {
+            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+            return;
+          } else {
+            return res;
+          }
+        })
+        .then(async (res) => {
+          if (res?.ok) {
+            setIsLoading(false);
+            const response = await res.json();
+            setPopularCategory(response.category);
+            return res;
+          }
+        });
+    };
+
+    requestPosts();
+    requestCategories();
+    todayPostsCount();
+    requestPopularCategory();
   }, [
     page,
     pages,
@@ -138,93 +194,13 @@ export default function Posts() {
     isSession,
   ]);
 
-  console.log("posts: ", posts);
-  console.log("count: ", count);
-  console.log("categories: ", categories);
-  console.log("selectCategory: ", selectCategory);
-  console.log("selectIsPublic: ", selectIsPublic);
-
-  const getVisiblePages = () => {
-    const maxVisible = 5;
-    let start = Math.max(page - 2, 1);
-    const end = Math.min(start + maxVisible - 1, totalPages);
-
-    if (end - start < maxVisible - 1) {
-      start = Math.max(end - maxVisible + 1, 1);
-    }
-
-    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
-  };
-  const visiblePages = getVisiblePages();
+  const visiblePages = getVisiblePages(page, totalPages);
 
   const handleMovePage = (nextPage: number) => {
     if (nextPage < 1 || nextPage > totalPages) return;
     setPage(nextPage);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-
-  // const posts = [
-  //   {
-  //     id: 1,
-  //     category: "GAME",
-  //     title: "마인크래프트 서버 공지 UI 구성 팁 정리",
-  //     content:
-  //       "서버 공지, 점검 안내, 이벤트 배너를 웹 대시보드와 자연스럽게 연결하는 방법을 정리했습니다.",
-  //     author: "craft_lab",
-  //     createdAt: "2026.06.02",
-  //     comments: 14,
-  //     likes: 38,
-  //     views: 402,
-  //   },
-  //   {
-  //     id: 2,
-  //     category: "FREE",
-  //     title: "Prisma 스키마 설계할 때 자주 하는 실수들",
-  //     content:
-  //       "unique 제약, soft delete, relation 이름 지정에서 많이 놓치는 포인트를 예시와 함께 정리했어요.",
-  //     author: "dev_moon",
-  //     createdAt: "2026.06.01",
-  //     comments: 9,
-  //     likes: 21,
-  //     views: 287,
-  //   },
-  //   {
-  //     id: 3,
-  //     category: "SPORTS",
-  //     title: "러닝 시작 2주차 후기",
-  //     content:
-  //       "입문 러닝화를 신고 주 3회 달려본 후기와 초반 통증 줄이는 팁을 정리했습니다.",
-  //     author: "runstar",
-  //     createdAt: "2026.05.30",
-  //     comments: 4,
-  //     likes: 11,
-  //     views: 159,
-  //   },
-  //   {
-  //     id: 4,
-  //     category: "GAME",
-  //     title: "친구들이랑 할만한 협동 게임 추천",
-  //     content:
-  //       "너무 어렵지 않으면서도 같이 웃으면서 할 수 있는 협동 게임 위주로 추천 부탁드립니다.",
-  //     author: "pixel_fox",
-  //     createdAt: "2026.05.29",
-  //     comments: 23,
-  //     likes: 42,
-  //     views: 611,
-  //   },
-  //   {
-  //     id: 5,
-  //     category: "FREE",
-  //     title: "요즘 집중 잘 되는 작업 루틴 있으신가요?",
-  //     content:
-  //       "개발할 때 집중이 자꾸 끊기는데, 실제로 효과 본 루틴이나 앱이 있으면 공유해주세요.",
-  //     author: "quiet_code",
-  //     createdAt: "2026.05.27",
-  //     comments: 12,
-  //     likes: 18,
-  //     views: 233,
-  //   },
-  // ];
 
   return (
     <>
@@ -291,27 +267,29 @@ export default function Posts() {
             >
               {categories?.map((category) => (
                 <button
-                  key={category}
+                  key={category.key}
                   type="button"
-                  className={`posts-category-chip ${category === selectCategory ? "is-active" : ""}`}
-                  onClick={() => setSelectCategory(category)}
+                  className={`posts-category-chip ${category.key === selectCategory ? "is-active" : ""}`}
+                  onClick={() => setSelectCategory(category.key)}
                 >
-                  {category}
+                  {category.name}
                 </button>
               ))}
             </section>
 
             <section className="posts-summary-row">
               <div className="posts-summary-card">
-                <strong>{count}</strong>
+                <strong>
+                  {count.toLocaleString("ko-KR", { maximumFractionDigits: 4 })}
+                </strong>
                 <span>전체 게시글</span>
               </div>
               <div className="posts-summary-card">
-                <strong>124</strong>
+                <strong>{todayNewPosts}</strong>
                 <span>오늘 등록된 글</span>
               </div>
               <div className="posts-summary-card">
-                <strong>GAME</strong>
+                <strong>{popularCategory}</strong>
                 <span>가장 활발한 카테고리</span>
               </div>
             </section>
@@ -327,13 +305,15 @@ export default function Posts() {
                   <article
                     className="posts-item"
                     key={post.id}
-                    onClick={() => navigate(`/posts/${encodeURI(post.id)}`)}
+                    onClick={() =>
+                      navigate(`/posts/${encodeURIComponent(post.id)}`)
+                    }
                   >
                     <div className="posts-item-top">
                       <span
-                        className={`posts-item-category ${post.category.toLowerCase()}`}
+                        className={`posts-item-category ${post.category.key.toLowerCase()}`}
                       >
-                        {post.category}
+                        {post.category.name}
                       </span>
                       <span className="posts-item-date">{post.createdAt}</span>
                     </div>
@@ -344,54 +324,37 @@ export default function Posts() {
                     <div className="posts-item-bottom">
                       <div className="posts-item-author">
                         <div className="posts-item-avatar">
-                          {post.users.nickname.charAt(0).toUpperCase()}
+                          {post.users.image ? (
+                            <img
+                              src={imageDecodeToUrl(post.users.image) as string}
+                            />
+                          ) : (
+                            <span className="posts-item-avatar-text">
+                              {post.users.nickname.charAt(0).toUpperCase()}
+                            </span>
+                          )}
                         </div>
                         <strong>{post.users.nickname}</strong>
                       </div>
 
-                      {/* <div className="posts-item-meta">
-                    <span>댓글 {post.comments}</span>
-                    <span>좋아요 {post.likes}</span>
-                    <span>조회 {post.views}</span>
-                  </div> */}
+                      <div className="posts-item-meta">
+                        <span>댓글 {post.count.comments}</span>
+                        <span>좋아요 {post.count.likes}</span>
+                        <span>조회 {post.count.views}</span>
+                      </div>
                     </div>
                   </article>
                 ))}
               </div>
             </section>
 
-            <nav className="posts-pagination" aria-label="게시글 페이지 이동">
-              <button
-                type="button"
-                className="posts-page-btn"
-                onClick={() => handleMovePage(page - 1)}
-                disabled={page === 1}
-              >
-                이전
-              </button>
-
-              {visiblePages.map((pageNumber) => (
-                <button
-                  key={pageNumber}
-                  type="button"
-                  className={`posts-page-btn ${page === pageNumber ? "is-current" : ""}`}
-                  onClick={() => handleMovePage(pageNumber)}
-                  aria-current={page === pageNumber ? "page" : undefined}
-                  aria-label={`페이지 ${pageNumber}`}
-                >
-                  {pageNumber}
-                </button>
-              ))}
-
-              <button
-                type="button"
-                className="posts-page-btn"
-                onClick={() => handleMovePage(page + 1)}
-                disabled={page === totalPages}
-              >
-                다음
-              </button>
-            </nav>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              visiblePages={visiblePages}
+              onMovePage={handleMovePage}
+              ariaLabel="내 게시글 페이지 이동"
+            />
           </section>
         </main>
       )}

@@ -1,109 +1,628 @@
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { EditorContent, useEditor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import { Dropcursor } from "@tiptap/extension-dropcursor";
+import { TextSelection } from "@tiptap/pm/state";
 import "../../styles/posts/postUpdate.css";
-import { useEffect, useState } from "react";
 import { getWithExpiry } from "@src/utils";
 import { Loading } from "@src/components";
 
+type TExistingImage = {
+  id: string;
+  previewUrl: string;
+  base64: string;
+};
+
+type TExistingPost = {
+  title?: string;
+  category?: string;
+  isPublic?: string;
+  context?: string;
+  images?: string[] | null;
+};
+
+const CustomImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+
+      imageId: {
+        default: null,
+
+        parseHTML: (element) => {
+          return element.getAttribute("data-image-id");
+        },
+
+        renderHTML: (attributes) => {
+          if (!attributes.imageId) {
+            return {};
+          }
+
+          return {
+            "data-image-id": attributes.imageId,
+          };
+        },
+      },
+
+      width: {
+        default: null,
+
+        parseHTML: (element) => {
+          return (
+            element.getAttribute("data-width") ||
+            element.getAttribute("width") ||
+            element.style.width ||
+            null
+          );
+        },
+
+        renderHTML: (attributes) => {
+          if (!attributes.width) {
+            return {};
+          }
+
+          return {
+            "data-width": attributes.width,
+          };
+        },
+      },
+    };
+  },
+});
+
+const getImageMimeType = (base64: string) => {
+  if (base64.startsWith("iVBORw0KGgo")) {
+    return "image/png";
+  }
+
+  if (base64.startsWith("UklGR")) {
+    return "image/webp";
+  }
+
+  if (base64.startsWith("R0lGOD")) {
+    return "image/gif";
+  }
+
+  return "image/jpeg";
+};
+
+const base64ToBlob = (imageData: string) => {
+  const dataUrlMatch = imageData.match(
+    /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/,
+  );
+
+  const base64 = dataUrlMatch ? dataUrlMatch[2] : imageData;
+  const mimeType = dataUrlMatch ? dataUrlMatch[1] : getImageMimeType(base64);
+
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], {
+    type: mimeType,
+  });
+};
+
+const replaceImageReferencesForEditor = (
+  context: string,
+  existingImages: TExistingImage[],
+) => {
+  const documentNode = new DOMParser().parseFromString(
+    context || "<p></p>",
+    "text/html",
+  );
+
+  const imageElements = documentNode.querySelectorAll<HTMLImageElement>("img");
+
+  imageElements.forEach((imageElement) => {
+    const source = imageElement.getAttribute("src") || "";
+    const imageReference = source.match(/^image:\/\/(\d+)$/);
+
+    if (!imageReference) {
+      return;
+    }
+
+    const imageIndex = Number(imageReference[1]);
+    const existingImage = existingImages[imageIndex];
+
+    if (!existingImage) {
+      imageElement.remove();
+      return;
+    }
+
+    imageElement.src = existingImage.previewUrl;
+    imageElement.setAttribute("data-image-id", existingImage.id);
+  });
+
+  return documentNode.body.innerHTML;
+};
+
 export default function PostUpdate() {
   const navigate = useNavigate();
-  const [isSession] = useState<string | null>(() =>
-    getWithExpiry("access_token"),
-  );
   const { pathname } = useLocation();
-  const postId = pathname.split("/posts/update")[1].slice(1);
+  const isSession = getWithExpiry("ack");
+
+  const postId = pathname.split("/posts/update")[1]?.slice(1);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const didSetEditorContentRef = useRef<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isPostLoaded, setIsPostLoaded] = useState<boolean>(false);
 
   const [title, setTitle] = useState<string>("");
   const [category, setCategory] = useState<string>("FREE");
   const [isPublic, setIsPublic] = useState<string>("TRUE");
-  const [context, setContext] = useState<string>("");
-  const [imageUrl, setImageUrl] = useState<string>("");
+  const [existingContext, setExistingContext] = useState<string>("");
+
+  /*
+    기존 서버 이미지와 새로 추가한 이미지를 모두 같은 구조로 관리합니다.
+    이 배열 순서가 아닌 "본문 img 요소 순서"로 최종 images[]를 다시 구성합니다.
+  */
+  const [editorImages, setEditorImages] = useState<TExistingImage[]>([]);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+
+      Dropcursor.configure({
+        color: "#6366f1",
+        width: 3,
+      }),
+
+      CustomImage.configure({
+        inline: false,
+        allowBase64: false,
+
+        resize: {
+          enabled: true,
+          directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
+          minWidth: 120,
+          minHeight: 80,
+          alwaysPreserveAspectRatio: true,
+        },
+      }),
+    ],
+
+    content: "<p></p>",
+  });
+
+  const clearImageSelection = () => {
+    if (!editor) {
+      return;
+    }
+
+    const { state, view } = editor;
+
+    if (!state.selection.node) {
+      return;
+    }
+
+    const selectionPosition = Math.min(
+      state.selection.from,
+      state.doc.content.size,
+    );
+
+    view.dispatch(
+      state.tr.setSelection(
+        TextSelection.near(state.doc.resolve(selectionPosition)),
+      ),
+    );
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        const dataUrl = String(reader.result || "");
+        const base64 = dataUrl.split(",")[1];
+
+        if (!base64) {
+          reject(new Error("이미지 Base64 변환에 실패했습니다."));
+          return;
+        }
+
+        resolve(base64);
+      };
+
+      reader.onerror = () => {
+        reject(new Error("이미지 파일을 읽지 못했습니다."));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleChooseImage = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 선택할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("이미지는 5MB 이하만 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+
+    if (!editor) {
+      alert("에디터를 불러오는 중입니다.");
+      e.target.value = "";
+      return;
+    }
+
+    try {
+      const base64 = await fileToBase64(file);
+
+      const id = crypto.randomUUID();
+      const previewUrl = URL.createObjectURL(file);
+
+      setEditorImages((previous) => [
+        ...previous,
+        {
+          id,
+          previewUrl,
+          base64,
+        },
+      ]);
+
+      editor
+        .chain()
+        .focus()
+        .setImage({
+          src: previewUrl,
+          alt: file.name,
+          imageId: id,
+        })
+        .run();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "이미지 처리 중 오류가 발생했습니다.";
+
+      alert(message);
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const convertEditorHtmlToRequestData = (html: string) => {
+    const documentNode = new DOMParser().parseFromString(html, "text/html");
+
+    /*
+      생성 페이지와 동일:
+      사용자가 Enter 두 번으로 만든 빈 문단을 &nbsp;로 저장합니다.
+    */
+    const paragraphElements =
+      documentNode.querySelectorAll<HTMLParagraphElement>("p");
+
+    paragraphElements.forEach((paragraphElement) => {
+      const text = paragraphElement.textContent?.trim() ?? "";
+      const hasChildElement = paragraphElement.children.length > 0;
+
+      if (!text && !hasChildElement) {
+        paragraphElement.innerHTML = "&nbsp;";
+      }
+    });
+
+    const imageElements =
+      documentNode.querySelectorAll<HTMLImageElement>("img");
+
+    const images: string[] = [];
+
+    imageElements.forEach((imageElement) => {
+      const imageId = imageElement.getAttribute("data-image-id");
+
+      /*
+        img에 연결된 상태 데이터가 없으면 삭제된 이미지로 판단합니다.
+      */
+      if (!imageId) {
+        imageElement.remove();
+        return;
+      }
+
+      const editorImage = editorImages.find((image) => image.id === imageId);
+
+      if (!editorImage) {
+        imageElement.remove();
+        return;
+      }
+
+      const imageIndex = images.length;
+
+      /*
+        본문에 존재하는 실제 순서대로 이미지 Base64 배열을 재구성합니다.
+        따라서 이미지 드래그 순서가 변경되어도
+        image://0 -> images[0] 관계가 항상 유지됩니다.
+      */
+      images.push(editorImage.base64);
+
+      imageElement.setAttribute("src", `image://${imageIndex}`);
+
+      const savedWidth =
+        imageElement.getAttribute("data-width") ||
+        imageElement.getAttribute("width") ||
+        imageElement.style.width;
+
+      if (savedWidth) {
+        const width = savedWidth.endsWith("%")
+          ? savedWidth
+          : savedWidth.endsWith("px")
+            ? savedWidth
+            : `${savedWidth}px`;
+
+        imageElement.setAttribute("data-width", width);
+        imageElement.style.width = width;
+      }
+
+      const savedHeight =
+        imageElement.getAttribute("data-height") ||
+        imageElement.getAttribute("height") ||
+        imageElement.style.height;
+
+      if (savedHeight) {
+        const height = savedHeight.endsWith("%")
+          ? savedHeight
+          : savedHeight.endsWith("px")
+            ? savedHeight
+            : `${savedHeight}px`;
+
+        imageElement.setAttribute("data-height", height);
+        imageElement.style.height = height;
+      }
+
+      imageElement.removeAttribute("data-image-id");
+    });
+
+    return {
+      context: documentNode.body.innerHTML,
+      images,
+    };
+  };
+
+  const revokePreviewUrls = (images: TExistingImage[]) => {
+    images.forEach((image) => {
+      if (image.previewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(image.previewUrl);
+      }
+    });
+  };
+
+  const requestExistingPost = async () => {
+    if (!isSession || !postId) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const res = await fetch(
+        `/api/posts/${encodeURIComponent(postId)}/existing/info`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `${isSession}`,
+          },
+        },
+      );
+
+      const response = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          response.error ||
+            response.message ||
+            "게시글 정보를 불러오지 못했습니다.",
+        );
+      }
+
+      const post = response?.data as TExistingPost;
+
+      setTitle(post?.title ?? "");
+      setCategory(post?.category ?? "FREE");
+      setIsPublic(post?.isPublic ?? "TRUE");
+
+      /*
+        기존 Base64 이미지:
+        image[0] -> 첫 번째 Blob URL
+        image[1] -> 두 번째 Blob URL
+      */
+      const existingImages = (post?.images ?? []).map((base64, index) => {
+        const blob = base64ToBlob(base64);
+
+        return {
+          id: `existing-image-${index}`,
+          previewUrl: URL.createObjectURL(blob),
+          base64,
+        };
+      });
+
+      setEditorImages(existingImages);
+
+      /*
+        image://N 참조값을 Blob URL로 바꾼 HTML을 state에 넣습니다.
+      */
+      const editorHtml = replaceImageReferencesForEditor(
+        post?.context ?? "<p></p>",
+        existingImages,
+      );
+
+      setExistingContext(editorHtml);
+      setIsPostLoaded(true);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "게시글 정보를 불러오는 중 오류가 발생했습니다.";
+
+      alert(message);
+      navigate("/posts");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePostUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    await fetch(`/api/posts/${encodeURI(postId)}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${isSession}`,
-      },
-      body: JSON.stringify({
-        title: title,
-        context: context,
-        image: imageUrl,
-        isPublic: isPublic,
-        category: category,
-      }),
-    })
-      .then(async (res) => {
-        if (res.status > 200) {
-          const response = await res.json();
-          alert(response.message);
-          setIsLoading(false);
-        } else {
-          return res;
-        }
-      })
-      .then((res) => {
-        if (res?.ok) {
-          setIsLoading(false);
-          alert("게시글이 수정되었습니다.");
-          navigate("/posts");
-          return res;
-        }
-      });
+    if (!isSession) {
+      alert("로그인이 필요한 페이지입니다.");
+      navigate("/signin");
+      return;
+    }
+
+    if (!postId) {
+      alert("게시글 ID가 올바르지 않습니다.");
+      navigate("/posts");
+      return;
+    }
+
+    if (!editor) {
+      alert("에디터를 불러오는 중입니다.");
+      return;
+    }
+
+    if (!title.trim()) {
+      alert("제목을 입력해주세요.");
+      return;
+    }
+
+    if (editor.isEmpty) {
+      alert("본문을 입력해주세요.");
+      return;
+    }
+
+    const shouldUpdate = window.confirm("게시글 수정을 완료하시겠습니까?");
+
+    if (!shouldUpdate) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      const htmlWithPreviewUrls = editor.getHTML();
+
+      const { context, images } =
+        convertEditorHtmlToRequestData(htmlWithPreviewUrls);
+
+      const res = await fetch(
+        `/api/posts/${encodeURIComponent(postId)}/update`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${isSession}`,
+          },
+          body: JSON.stringify({
+            title: title.trim(),
+            context,
+            category,
+            isPublic,
+            images: images.length > 0 ? images : "REMOVE",
+          }),
+        },
+      );
+
+      const response = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          response.error || response.message || "게시글 수정에 실패했습니다.",
+        );
+      }
+
+      revokePreviewUrls(editorImages);
+
+      alert("게시글 수정이 완료되었습니다.");
+      navigate(`/posts/${encodeURIComponent(postId)}`);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "게시글 수정 중 오류가 발생했습니다.";
+
+      alert(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
     if (!isSession) {
       alert("로그인이 필요한 페이지입니다.");
-      navigate("/login");
+      navigate("/signin");
       return;
     }
 
-    const load = async () => {
-      setIsLoading(false);
-    };
+    if (!postId) {
+      alert("게시글 ID가 올바르지 않습니다.");
+      navigate("/posts");
+      return;
+    }
 
-    load();
-
-    const requestPost = async () => {
-      await fetch(`/api/posts/${encodeURI(postId)}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${isSession}`,
-        },
-      })
-        .then(async (res) => {
-          if (res.status > 200) {
-            const response = await res.json();
-            alert(response.message);
-            setIsLoading(false);
-          } else {
-            return res;
-          }
-        })
-        .then(async (res) => {
-          if (res?.ok) {
-            setIsLoading(false);
-            const response = await res.json();
-            setTitle(response.data.title);
-            setCategory(response.data.category);
-            setIsPublic(response.data.isPublic);
-            setContext(response.data.context ?? "");
-            setImageUrl(response.data.imageUrl ?? "");
-            return res;
-          }
-        });
-    };
-
-    // requestPost();
+    requestExistingPost();
   }, [isSession, navigate, postId]);
 
-  console.log("test: ", isSession);
+  useEffect(() => {
+    if (!editor || !isPostLoaded || didSetEditorContentRef.current) {
+      return;
+    }
+
+    editor.commands.setContent(existingContext || "<p></p>", {
+      emitUpdate: false,
+      parseOptions: {
+        preserveWhitespace: "full",
+      },
+    });
+
+    didSetEditorContentRef.current = true;
+  }, [editor, existingContext, isPostLoaded]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+
+      if (!editor.view.dom.contains(target)) {
+        clearImageSelection();
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handleOutsidePointerDown);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    return () => {
+      revokePreviewUrls(editorImages);
+    };
+  }, [editorImages]);
 
   return (
     <>
@@ -114,27 +633,37 @@ export default function PostUpdate() {
           <section className="post-update-shell">
             <aside className="post-update-aside">
               <span className="post-update-badge">EDIT POST</span>
+
               <h1>게시글 수정</h1>
+
               <p>
-                기존 게시글 내용을 다듬고, 카테고리나 공개 여부를 변경한 뒤
-                저장할 수 있습니다.
+                기존 게시글 내용을 다듬고, 이미지와 카테고리, 공개 여부를 변경한
+                뒤 저장할 수 있습니다.
               </p>
 
               <div className="post-update-guide">
                 <div className="post-update-guide-item">
                   <strong>기존 내용 유지 가능</strong>
+
                   <span>
                     수정 폼에는 현재 게시글 정보가 미리 채워져 있습니다.
                   </span>
                 </div>
+
                 <div className="post-update-guide-item">
-                  <strong>핵심 정보 먼저 점검</strong>
-                  <span>제목, 카테고리, 공개 여부를 먼저 확인해보세요.</span>
-                </div>
-                <div className="post-update-guide-item">
-                  <strong>저장 전 미리 검토</strong>
+                  <strong>이미지 크기와 위치 조절</strong>
+
                   <span>
-                    수정 후 본문 흐름과 오탈자를 한 번 더 확인해주세요.
+                    이미지를 클릭한 뒤 모서리를 드래그해 크기를 조절하고, 본문
+                    안에서 위치를 이동할 수 있습니다.
+                  </span>
+                </div>
+
+                <div className="post-update-guide-item">
+                  <strong>공백과 문단 유지</strong>
+
+                  <span>
+                    기존의 빈 줄과 문단 간격도 그대로 유지한 채 수정됩니다.
                   </span>
                 </div>
               </div>
@@ -148,13 +677,18 @@ export default function PostUpdate() {
                 <span className="post-update-badge post-update-badge--soft">
                   UPDATE FORM
                 </span>
+
                 <h2 id="post-update-title">게시글 수정 정보</h2>
-                <p>수정이 필요한 항목을 변경한 뒤 저장 버튼으로 반영하세요.</p>
+
+                <p>
+                  본문 이미지, 문단, 빈 줄을 원하는 형태로 수정한 뒤 저장하세요.
+                </p>
               </div>
 
               <form className="post-update-form" onSubmit={handlePostUpdate}>
                 <div className="post-update-field">
                   <label htmlFor="title">제목</label>
+
                   <input
                     id="title"
                     name="title"
@@ -162,38 +696,41 @@ export default function PostUpdate() {
                     value={title}
                     placeholder="게시글 제목을 입력해주세요"
                     onChange={(e) => setTitle(e.target.value)}
+                    disabled={isSubmitting}
                   />
-                  <small>
-                    제목만 보아도 어떤 내용인지 알 수 있도록 작성해주세요.
-                  </small>
                 </div>
 
                 <div className="post-update-row">
                   <div className="post-update-field">
                     <label htmlFor="category">카테고리</label>
+
                     <select
                       id="category"
                       name="category"
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
+                      disabled={isSubmitting}
                     >
-                      <option value="FREE">FREE</option>
-                      <option value="SPORTS">SPORTS</option>
-                      <option value="GAME">GAME</option>
+                      <option value="FREE">자유</option>
+                      <option value="SPORTS">스포츠</option>
+                      <option value="GAME">게임</option>
                     </select>
                   </div>
 
                   <div className="post-update-field">
                     <span className="post-update-label">공개 여부</span>
+
                     <div className="post-update-radio-group">
                       <label className="post-update-radio">
                         <input
                           type="radio"
                           name="isPublic"
                           value="TRUE"
-                          defaultChecked
+                          checked={isPublic === "TRUE"}
                           onChange={(e) => setIsPublic(e.target.value)}
+                          disabled={isSubmitting}
                         />
+
                         <span>공개</span>
                       </label>
 
@@ -202,8 +739,11 @@ export default function PostUpdate() {
                           type="radio"
                           name="isPublic"
                           value="FALSE"
+                          checked={isPublic === "FALSE"}
                           onChange={(e) => setIsPublic(e.target.value)}
+                          disabled={isSubmitting}
                         />
+
                         <span>비공개</span>
                       </label>
                     </div>
@@ -211,33 +751,42 @@ export default function PostUpdate() {
                 </div>
 
                 <div className="post-update-field">
-                  <label htmlFor="context">본문</label>
-                  <textarea
-                    id="context"
-                    name="context"
-                    rows={14}
-                    value={context}
-                    placeholder="게시글 내용을 입력해주세요"
-                    onChange={(e) => setContext(e.target.value)}
-                  />
-                  <small>
-                    문단을 나누어 작성하면 더 읽기 좋고, 수정 사항도 확인하기
-                    쉽습니다.
-                  </small>
-                </div>
+                  <div className="post-update-editor-head">
+                    <label>본문</label>
 
-                <div className="post-update-field">
-                  <label htmlFor="image">대표 이미지 URL</label>
-                  <input
-                    id="image"
-                    name="image"
-                    type="url"
-                    value={imageUrl}
-                    placeholder="https://example.com/image.jpg"
-                    onChange={(e) => setImageUrl(e.target.value)}
-                  />
+                    <button
+                      type="button"
+                      className="post-update-image-upload-btn"
+                      onClick={handleChooseImage}
+                      disabled={isSubmitting}
+                    >
+                      이미지 추가
+                    </button>
+
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      onChange={handleImageSelect}
+                      disabled={isSubmitting}
+                      hidden
+                    />
+                  </div>
+
+                  <div
+                    className="post-update-rich-editor"
+                    onMouseDown={(event) => {
+                      if (event.target === event.currentTarget) {
+                        clearImageSelection();
+                      }
+                    }}
+                  >
+                    <EditorContent editor={editor} />
+                  </div>
+
                   <small>
-                    선택 항목입니다. 이미지가 있다면 게시글 전달력이 좋아집니다.
+                    이미지를 클릭하면 테두리와 네 개의 크기 조절 점이
+                    나타납니다. 빈 줄과 문단 간격도 저장됩니다.
                   </small>
                 </div>
 
@@ -245,18 +794,29 @@ export default function PostUpdate() {
                   <span className="post-update-preview-badge">
                     CHECK BEFORE SAVE
                   </span>
+
                   <p>
-                    수정한 제목, 카테고리, 공개 여부, 본문 내용을 다시 한 번
-                    확인한 뒤 저장해주세요.
+                    수정한 제목, 카테고리, 공개 여부, 본문, 이미지와 공백을 다시
+                    한 번 확인한 뒤 저장해주세요.
                   </p>
                 </div>
 
                 <div className="post-update-actions">
-                  <button type="button" className="post-update-cancel-btn">
+                  <button
+                    type="button"
+                    className="post-update-cancel-btn"
+                    onClick={() => navigate(-1)}
+                    disabled={isSubmitting}
+                  >
                     취소
                   </button>
-                  <button type="submit" className="post-update-submit-btn">
-                    수정 저장
+
+                  <button
+                    type="submit"
+                    className="post-update-submit-btn"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "저장 중..." : "저장"}
                   </button>
                 </div>
               </form>
