@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { Header } from "./components/index.ts";
 import App from "@src/App.tsx";
-import Login from "./pages/auth/login.tsx";
+import SignIn from "./pages/auth/signIn.tsx";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import MyPage from "./pages/users/mypage.tsx";
 import CertifiEmail from "./pages/certifiEmail.tsx";
@@ -12,6 +12,12 @@ import Posts from "./pages/posts/posts.tsx";
 import PostCreate from "./pages/posts/postCreate.tsx";
 import { PostOne } from "./pages/posts/postOne.tsx";
 import PostUpdate from "./pages/posts/postUpdate.tsx";
+import VerifyPage from "./pages/verifyPage.tsx";
+import MyCommentsPage from "./pages/users/myCommentsPage.tsx";
+import MyPostsPage from "./pages/users/myPostsPage.tsx";
+import EditUserPage from "./pages/users/editUserPage.tsx";
+import EditProfilePage from "./pages/users/editProfilePage.tsx";
+import GoogleRedirect from "./pages/auth/googleRedirect.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -20,12 +26,18 @@ createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/" element={<App />} />
         // auth
-        <Route path="/login" element={<Login />} />
+        <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/certifiemail" element={<CertifiEmail />} />
-        <Route path="/resetpassword" element={<ResetPassword />} />
+        <Route path="/auth/email/verify" element={<VerifyPage />} />
+        <Route path="/auth/password/forgot" element={<CertifiEmail />} />
+        <Route path="/auth/password/reset" element={<ResetPassword />} />
+        <Route path="/login/google/redirect" element={<GoogleRedirect />} />
         // users
         <Route path="/mypage" element={<MyPage />} />
+        <Route path="/users/comments" element={<MyCommentsPage />} />
+        <Route path="/users/posts" element={<MyPostsPage />} />
+        <Route path="/users/profile/edit" element={<EditProfilePage />} />
+        <Route path="/users/edit" element={<EditUserPage />} />
         // posts
         <Route path="/posts" element={<Posts />} />
         <Route path="/posts/:id" element={<PostOne />} />
