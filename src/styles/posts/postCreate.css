@@ -6,8 +6,16 @@ body {
   margin: 0;
   font-family: "Pretendard", "Noto Sans KR", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(124, 58, 237, 0.08), transparent 24%),
+    radial-gradient(
+      circle at top left,
+      rgba(37, 99, 235, 0.12),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(124, 58, 237, 0.08),
+      transparent 24%
+    ),
     #f4f7fb;
   color: #111827;
 }
@@ -25,26 +33,26 @@ button {
 }
 
 .create-post-shell {
-  max-width: 1280px;
-  margin: 0 auto;
   display: grid;
   grid-template-columns: 0.9fr 1.1fr;
   gap: 28px;
   align-items: start;
+  max-width: 1280px;
+  margin: 0 auto;
 }
 
 .create-post-aside,
 .create-post-card {
-  background: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(14px);
   border-radius: 32px;
+  background: rgba(255, 255, 255, 0.94);
   box-shadow: 0 16px 40px rgba(17, 24, 39, 0.08);
+  backdrop-filter: blur(14px);
 }
 
 .create-post-aside {
-  padding: 36px;
   position: sticky;
   top: 32px;
+  padding: 36px;
 }
 
 .create-post-badge {
@@ -78,16 +86,16 @@ button {
 }
 
 .create-post-guide {
-  margin-top: 28px;
   display: grid;
   gap: 14px;
+  margin-top: 28px;
 }
 
 .create-post-guide-item {
   padding: 20px;
+  border: 1px solid #e5e7eb;
   border-radius: 22px;
   background: linear-gradient(180deg, #f8fafc, #ffffff);
-  border: 1px solid #e5e7eb;
 }
 
 .create-post-guide-item strong {
@@ -139,39 +147,29 @@ button {
 
 .create-post-field label,
 .create-post-label {
+  color: #111827;
   font-size: 14px;
   font-weight: 700;
-  color: #111827;
-}
-
-.create-post-field input:not([type="radio"]),
-.create-post-field select,
-.create-post-field textarea {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 18px;
-  background: #f9fafb;
-  color: #111827;
-  outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .create-post-field input:not([type="radio"]),
 .create-post-field select {
+  width: 100%;
   height: 54px;
   padding: 0 16px;
-}
-
-.create-post-field textarea {
-  resize: vertical;
-  min-height: 280px;
-  padding: 16px;
-  line-height: 1.8;
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
+  outline: none;
+  background: #f9fafb;
+  color: #111827;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .create-post-field input:not([type="radio"]):focus,
-.create-post-field select:focus,
-.create-post-field textarea:focus {
+.create-post-field select:focus {
   border-color: #6366f1;
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
@@ -185,8 +183,8 @@ button {
 
 .create-post-radio-group {
   display: flex;
-  gap: 12px;
   flex-wrap: wrap;
+  gap: 12px;
 }
 
 .create-post-radio {
@@ -202,18 +200,23 @@ button {
   background: #f9fafb;
   color: #374151;
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .create-post-radio input {
-  margin: 0;
-  /* flex-shrink: 0; */
   width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  margin: 0;
 }
 
 .create-post-radio span {
-  white-space: nowrap;
-  line-height: 1;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .create-post-radio:has(input:checked) {
@@ -222,28 +225,236 @@ button {
   color: #3730a3;
 }
 
-.create-post-preview {
-  padding: 18px 20px;
-  border-radius: 20px;
-  background: linear-gradient(180deg, #eef2ff, #ffffff);
-  border: 1px solid #dbe4ff;
+.create-post-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.create-post-preview-badge {
-  display: inline-flex;
-  margin-bottom: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
+.create-post-image-upload-btn {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.create-post-image-upload-btn:hover {
+  border-color: #818cf8;
+  background: #e0e7ff;
+  transform: translateY(-1px);
+}
+
+.create-post-image-upload-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.post-rich-editor {
+  position: relative;
+  min-height: 380px;
+  overflow: visible;
+  border: 1px solid #d1d5db;
+  border-radius: 18px;
   background: #ffffff;
-  color: #4338ca;
-  font-size: 12px;
-  font-weight: 800;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.create-post-preview p {
+.post-rich-editor:focus-within {
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.post-rich-editor .ProseMirror {
+  min-height: 380px;
+  padding: 20px;
+  outline: none;
+  overflow: visible;
+  color: #111827;
+  line-height: 1.5;
+}
+
+.post-rich-editor .ProseMirror > *:first-child {
+  margin-top: 0;
+}
+
+.post-rich-editor .ProseMirror > p {
+  min-height: 1.5em;
+  margin: 0 0 4px;
+  line-height: 1.5;
+}
+
+/*
+  Enter 두 번으로 만든 빈 문단.
+  편집 화면에서 <p><br></p> 또는 <p></p>로 보일 수 있습니다.
+*/
+.post-rich-editor .ProseMirror > p:empty,
+.post-rich-editor .ProseMirror > p:has(> br:only-child) {
+  min-height: 1.5em;
+  height: 1.5em;
+  margin: 0 0 4px;
+  padding: 0;
+  line-height: 1.5;
+}
+
+.post-rich-editor .ProseMirror > p:last-child {
+  margin-bottom: 0;
+}
+
+.post-rich-editor .ProseMirror img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  user-select: none;
+  cursor: grab;
+  -webkit-user-drag: element;
+}
+
+.post-rich-editor .ProseMirror img:active {
+  cursor: grabbing;
+}
+
+.post-rich-editor .ProseMirror-selectednode {
+  outline: 2px solid #6366f1;
+  outline-offset: 5px;
+  border-radius: 8px;
+}
+
+.post-rich-editor .ProseMirror [data-resize-container],
+.post-rich-editor .ProseMirror .resize-node-view,
+.post-rich-editor .ProseMirror .resizable-image,
+.post-rich-editor .ProseMirror .image-resizer,
+.post-rich-editor .ProseMirror .tiptap-resizable-node-view {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  overflow: visible;
+  line-height: 0;
+}
+
+.post-rich-editor .ProseMirror [data-resize-handle],
+.post-rich-editor .ProseMirror [data-direction],
+.post-rich-editor .ProseMirror [data-position] {
+  position: absolute;
+  z-index: 50;
+  display: block;
+  visibility: hidden;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   margin: 0;
-  color: #4b5563;
-  line-height: 1.7;
+  padding: 0;
+  border: 3px solid #4f46e5;
+  border-radius: 50%;
+  outline: none;
+  background: #ffffff;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 3px 10px rgba(79, 70, 229, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.15s ease,
+    visibility 0.15s ease,
+    background 0.15s ease,
+    transform 0.15s ease;
+}
+
+.post-rich-editor .ProseMirror .ProseMirror-selectednode [data-resize-handle],
+.post-rich-editor .ProseMirror .ProseMirror-selectednode [data-direction],
+.post-rich-editor .ProseMirror .ProseMirror-selectednode [data-position] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.post-rich-editor
+  .ProseMirror
+  [data-resize-container]:has(img.ProseMirror-selectednode)
+  [data-resize-handle],
+.post-rich-editor
+  .ProseMirror
+  [data-resize-container]:has(img.ProseMirror-selectednode)
+  [data-direction],
+.post-rich-editor
+  .ProseMirror
+  [data-resize-container]:has(img.ProseMirror-selectednode)
+  [data-position],
+.post-rich-editor
+  .ProseMirror
+  .resize-node-view:has(img.ProseMirror-selectednode)
+  [data-resize-handle],
+.post-rich-editor
+  .ProseMirror
+  .resize-node-view:has(img.ProseMirror-selectednode)
+  [data-direction],
+.post-rich-editor
+  .ProseMirror
+  .resize-node-view:has(img.ProseMirror-selectednode)
+  [data-position] {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.post-rich-editor .ProseMirror [data-direction="top-left"],
+.post-rich-editor .ProseMirror [data-position="top-left"],
+.post-rich-editor .ProseMirror [data-resize-handle="top-left"] {
+  top: -9px;
+  left: -9px;
+  cursor: nwse-resize;
+}
+
+.post-rich-editor .ProseMirror [data-direction="top-right"],
+.post-rich-editor .ProseMirror [data-position="top-right"],
+.post-rich-editor .ProseMirror [data-resize-handle="top-right"] {
+  top: -9px;
+  right: -9px;
+  cursor: nesw-resize;
+}
+
+.post-rich-editor .ProseMirror [data-direction="bottom-left"],
+.post-rich-editor .ProseMirror [data-position="bottom-left"],
+.post-rich-editor .ProseMirror [data-resize-handle="bottom-left"] {
+  bottom: -9px;
+  left: -9px;
+  cursor: nesw-resize;
+}
+
+.post-rich-editor .ProseMirror [data-direction="bottom-right"],
+.post-rich-editor .ProseMirror [data-position="bottom-right"],
+.post-rich-editor .ProseMirror [data-resize-handle="bottom-right"] {
+  right: -9px;
+  bottom: -9px;
+  cursor: nwse-resize;
+}
+
+.post-rich-editor .ProseMirror [data-resize-handle]:hover,
+.post-rich-editor .ProseMirror [data-direction]:hover,
+.post-rich-editor .ProseMirror [data-position]:hover {
+  background: #4f46e5;
+  transform: scale(1.2);
+}
+
+.post-rich-editor .ProseMirror .dropcursor {
+  position: absolute;
+  z-index: 30;
+  width: 3px;
+  background: #6366f1;
+  pointer-events: none;
 }
 
 .create-post-actions {
@@ -260,6 +471,15 @@ button {
   border-radius: 18px;
   font-weight: 800;
   cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+
+.create-post-cancel-btn:hover,
+.create-post-submit-btn:hover {
+  transform: translateY(-1px);
 }
 
 .create-post-cancel-btn {
@@ -268,11 +488,28 @@ button {
   color: #4b5563;
 }
 
+.create-post-cancel-btn:hover {
+  border-color: #9ca3af;
+  background: #f9fafb;
+}
+
 .create-post-submit-btn {
   border: none;
   background: linear-gradient(135deg, #111827, #1f2937);
   color: #ffffff;
   box-shadow: 0 14px 28px rgba(17, 24, 39, 0.14);
+}
+
+.create-post-submit-btn:hover {
+  background: linear-gradient(135deg, #1f2937, #374151);
+}
+
+.create-post-cancel-btn:disabled,
+.create-post-submit-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 @media (max-width: 1100px) {
@@ -302,6 +539,34 @@ button {
 
   .create-post-row {
     grid-template-columns: 1fr;
+  }
+
+  .create-post-editor-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .create-post-image-upload-btn {
+    width: 100%;
+  }
+
+  .post-rich-editor,
+  .post-rich-editor .ProseMirror {
+    min-height: 300px;
+  }
+
+  .post-rich-editor .ProseMirror {
+    padding: 16px;
+  }
+
+  .post-rich-editor .ProseMirror [data-resize-handle],
+  .post-rich-editor .ProseMirror [data-direction],
+  .post-rich-editor .ProseMirror [data-position] {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
+    border-width: 2px;
   }
 
   .create-post-actions {

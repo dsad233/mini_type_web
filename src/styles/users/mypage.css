@@ -9,18 +9,19 @@ body {
   color: #111827;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+.mypage button {
+  font: inherit;
 }
 
-button {
-  font: inherit;
+.mypage a {
+  color: inherit;
+  text-decoration: none;
 }
 
 .mypage {
   min-height: 100vh;
   padding: 28px;
+  background: #f4f7fb;
 }
 
 .mypage-shell {
@@ -34,8 +35,8 @@ button {
   margin-bottom: 24px;
 }
 
-.profile-card {
-  background: white;
+.mypage .profile-card {
+  background: #ffffff;
   border-radius: 28px;
   padding: 28px;
   display: flex;
@@ -45,26 +46,46 @@ button {
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
 }
 
-.profile-main {
+.mypage .profile-main {
   display: flex;
   align-items: center;
   gap: 20px;
+  min-width: 0;
 }
 
-.profile-avatar {
+.mypage .profile-avatar {
   width: 88px;
   height: 88px;
+  flex: 0 0 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
   border-radius: 28px;
-  display: grid;
-  place-items: center;
   background: linear-gradient(135deg, #2563eb, #7c3aed);
-  color: white;
+  color: #ffffff;
   font-size: 34px;
   font-weight: 800;
-  flex-shrink: 0;
 }
 
-.profile-badge {
+.mypage .profile-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+.mypage .profile-avatar-text {
+  display: block;
+  line-height: 1;
+}
+
+.mypage .profile-badge {
   display: inline-flex;
   padding: 8px 12px;
   border-radius: 999px;
@@ -75,25 +96,31 @@ button {
   margin-bottom: 12px;
 }
 
-.profile-copy h1 {
-  margin: 0;
-  font-size: 32px;
+.mypage .profile-copy {
+  min-width: 0;
 }
 
-.profile-copy p {
+.mypage .profile-copy h1 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.mypage .profile-copy p {
   margin: 10px 0 0;
   color: #6b7280;
   line-height: 1.7;
 }
 
-.profile-meta {
+.mypage .profile-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 16px;
 }
 
-.profile-meta span {
+.mypage .profile-meta span {
   padding: 8px 12px;
   border-radius: 999px;
   background: #f3f4f6;
@@ -102,116 +129,149 @@ button {
   font-weight: 600;
 }
 
-.profile-actions {
+.mypage .profile-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
-.mypage-primary-btn {
+.mypage .mypage-primary-btn {
   width: 120px;
   height: 48px;
   padding: 0 18px;
   border: none;
   border-radius: 14px;
-  cursor: pointer;
-  font-weight: 700;
-  font-size: 15px;
-  line-height: 1;
-  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-.mypage-primary-btn {
   background: #111827;
-  color: white;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
-.summary-grid {
+.mypage .mypage-primary-btn:hover {
+  background: #1f2937;
+  transform: translateY(-1px);
+}
+
+.mypage .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
 }
 
-.summary-card {
-  background: white;
-  border-radius: 24px;
+.mypage .summary-card {
+  min-width: 0;
   padding: 24px;
+  background: #ffffff;
+  border-radius: 24px;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
 }
 
-.summary-card strong {
+.mypage .summary-card strong {
   display: block;
-  font-size: 28px;
   margin-bottom: 8px;
+  overflow-wrap: anywhere;
+  font-size: 28px;
+  line-height: 1.2;
 }
 
-.summary-card span {
+.mypage .summary-card span {
   color: #6b7280;
   font-size: 14px;
 }
 
-.mypage-grid {
+.mypage .mypage-grid {
   display: grid;
-  grid-template-columns: 1.5fr 0.85fr;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.85fr);
   gap: 24px;
 }
 
-.mypage-main,
-.mypage-side {
+.mypage .mypage-main,
+.mypage .mypage-side {
+  min-width: 0;
   display: grid;
   gap: 24px;
 }
 
-.panel {
-  background: white;
-  border-radius: 28px;
+.mypage .panel,
+.mypage .mypage-panel {
+  min-width: 0;
   padding: 24px;
+  background: #ffffff;
+  border-radius: 28px;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
 }
 
-.section-head {
+.mypage .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 20px;
 }
 
-.section-head h2 {
+.mypage .section-head h2 {
   margin: 0;
   font-size: 22px;
+  line-height: 1.3;
 }
 
-.section-head a {
+.mypage .section-head a {
+  flex-shrink: 0;
   color: #4f46e5;
   font-size: 14px;
   font-weight: 700;
 }
 
-.post-list,
-.comment-list {
+.mypage .section-head a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.mypage .post-list,
+.mypage .comment-list {
   display: grid;
   gap: 16px;
 }
 
-.post-item,
-.comment-item {
+.mypage .post-item,
+.mypage .comment-item {
+  min-width: 0;
   padding: 20px;
-  border-radius: 22px;
   border: 1px solid #e5e7eb;
+  border-radius: 22px;
   background: #fcfdff;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
-.post-item-top {
+.mypage .post-item:hover,
+.mypage .comment-item:hover {
+  border-color: #c7d2fe;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.06);
+  transform: translateY(-1px);
+}
+
+.mypage .post-item-top {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
 }
 
-.category {
+.mypage .category {
   display: inline-flex;
   padding: 6px 10px;
   border-radius: 999px;
@@ -219,58 +279,62 @@ button {
   font-weight: 700;
 }
 
-.category.free {
+.mypage .category.free {
   background: #ede9fe;
   color: #6d28d9;
 }
 
-.category.sports {
+.mypage .category.sports {
   background: #dcfce7;
   color: #166534;
 }
 
-.category.game {
+.mypage .category.game {
   background: #dbeafe;
   color: #1d4ed8;
 }
 
-.date {
+.mypage .date {
   color: #9ca3af;
   font-size: 13px;
 }
 
-.post-item h3,
-.comment-item strong {
+.mypage .post-item h3,
+.mypage .comment-item strong {
   display: block;
   margin: 0 0 10px;
   font-size: 19px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
-.post-item-meta {
+.mypage .post-item-meta {
   display: flex;
   gap: 12px;
   color: #4b5563;
   font-size: 14px;
+  flex-wrap: wrap;
 }
 
-.comment-item p {
+.mypage .comment-item p {
   margin: 0 0 10px;
   color: #6b7280;
   line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.comment-item span {
+.mypage .comment-item span {
   color: #9ca3af;
   font-size: 13px;
 }
 
-.status-list {
+.mypage .status-list {
   display: grid;
   gap: 14px;
 }
 
-.status-list div {
+.mypage .status-list div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -279,20 +343,20 @@ button {
   background: #f8fafc;
 }
 
-.status-list span {
+.mypage .status-list span {
   color: #6b7280;
 }
 
-.status-list strong {
+.mypage .status-list strong {
   color: #111827;
 }
 
-.quick-menu {
+.mypage .quick-menu {
   display: grid;
   gap: 12px;
 }
 
-.quick-menu button {
+.mypage .quick-menu button {
   height: 48px;
   border: none;
   border-radius: 16px;
@@ -302,31 +366,53 @@ button {
   cursor: pointer;
   text-align: left;
   padding: 0 16px;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.highlight-panel {
+.mypage .quick-menu button:hover {
+  background: #e0e7ff;
+  color: #3730a3;
+  transform: translateX(2px);
+}
+
+.mypage .highlight-panel {
   background: linear-gradient(180deg, #eef2ff, #ffffff);
 }
 
-.highlight-panel h2 {
+.mypage .highlight-panel h2 {
   margin: 0 0 10px;
   font-size: 24px;
+  line-height: 1.35;
 }
 
-.highlight-panel p {
+.mypage .highlight-panel p {
   margin: 0;
   color: #6b7280;
   line-height: 1.8;
 }
 
 @media (max-width: 1100px) {
-  .summary-grid,
-  .mypage-grid {
+  .mypage .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mypage .mypage-grid {
     grid-template-columns: 1fr;
   }
 
-  .profile-card {
-    flex-direction: column;
+  .mypage .mypage-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .mypage .highlight-panel {
+    grid-column: 1 / -1;
+  }
+
+  .mypage .profile-card {
     align-items: flex-start;
   }
 }
@@ -336,21 +422,98 @@ button {
     padding: 20px;
   }
 
-  .profile-main {
-    flex-direction: column;
-    align-items: flex-start;
+  .mypage .profile-card,
+  .mypage .panel,
+  .mypage .mypage-panel {
+    border-radius: 24px;
   }
 
-  .summary-grid {
+  .mypage .profile-card {
+    flex-direction: column;
+    padding: 24px;
+  }
+
+  .mypage .profile-main {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mypage .profile-copy h1 {
+    font-size: 28px;
+  }
+
+  .mypage .profile-actions {
+    width: 100%;
+  }
+
+  .mypage .mypage-primary-btn {
+    width: 100%;
+  }
+
+  .mypage .summary-grid {
     grid-template-columns: 1fr;
   }
 
-  .profile-actions {
-    width: 100%;
+  .mypage .mypage-side {
+    grid-template-columns: 1fr;
+  }
+
+  .mypage .highlight-panel {
+    grid-column: auto;
+  }
+
+  .mypage .section-head {
+    align-items: flex-start;
+  }
+
+  .mypage .post-item-top {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .mypage {
+    padding: 16px;
+  }
+
+  .mypage .profile-card,
+  .mypage .panel,
+  .mypage .mypage-panel {
+    padding: 20px;
+  }
+
+  .mypage .profile-avatar {
+    width: 76px;
+    height: 76px;
+    border-radius: 24px;
+    font-size: 30px;
+  }
+
+  .mypage .profile-meta {
+    align-items: flex-start;
     flex-direction: column;
   }
 
-  .mypage-primary-btn {
-    width: 100%;
+  .mypage .profile-meta span {
+    max-width: 100%;
+  }
+
+  .mypage .section-head {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mypage .section-head a {
+    align-self: flex-end;
+  }
+
+  .mypage .status-list div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .mypage .status-list strong {
+    text-align: left;
   }
 }
