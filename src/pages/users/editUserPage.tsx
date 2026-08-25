@@ -18,23 +18,35 @@ type TUserProfile = {
   isPublic: string;
 };
 
+type TNicknameCheckStatus = "idle" | "checking" | "available" | "unavailable";
+
 export default function EditUserPage() {
   const navigate = useNavigate();
   const isSession = getWithExpiry("ack");
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
   const [user, setUser] = useState<TUserProfile | null>(null);
 
   const [name, setName] = useState("");
+  const [isNameTouched, setIsNameTouched] = useState(false);
+
+  /*
+    nickname: input에서 현재 수정 중인 값
+    savedNickname: 서버에 마지막으로 저장된 값
+  */
   const [nickname, setNickname] = useState("");
+  const [savedNickname, setSavedNickname] = useState("");
+
   const [gender, setGender] = useState<"MALE" | "FEMALE" | "">("");
   const [birthDay, setBirthDay] = useState("");
   const [phoneCountryCode, setPhoneCountryCode] = useState("+82");
   const [phoneLocalNumber, setPhoneLocalNumber] = useState("");
   const [address, setAddress] = useState("");
   const [isPublic, setIsPublic] = useState<"TRUE" | "FALSE">("TRUE");
+
+  const [nicknameCheckStatus, setNicknameCheckStatus] =
+    useState<TNicknameCheckStatus>("idle");
 
   const splitPhoneNumber = (value: string | null) => {
     if (!value) {
@@ -96,72 +108,82 @@ export default function EditUserPage() {
     }
 
     const requestUserProfile = async () => {
-      await fetch("/api/users/existing/info", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${isSession}`,
-        },
-      })
-        .then(async (res) => {
-          if (res.status > 200 && res.status < 500) {
-            const response = await res.json();
-            alert(response.error || response.message);
-            setIsLoading(false);
-          } else if (res.status >= 500) {
-            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
-            return;
-          } else {
-            return res;
-          }
-        })
-        .then(async (res) => {
-          if (res?.ok) {
-            const response = await res.json();
-            setUser(response.data);
-
-            setName(response?.data.name || "");
-            setNickname(response?.data.nickname || "");
-            setGender(response?.data.gender || "");
-            setBirthDay(
-              response?.data.birthDay
-                ? String(response?.data.birthDay).slice(0, 10)
-                : "",
-            );
-
-            const phoneInfo = splitPhoneNumber(
-              response?.data.phoneNumber || null,
-            );
-            setPhoneCountryCode(phoneInfo.countryCode);
-            setPhoneLocalNumber(phoneInfo.localNumber);
-
-            setAddress(response?.data.address || "");
-            setIsPublic(response?.data.isPublic || "TRUE");
-
-            setIsLoading(false);
-            return res;
-          }
+      try {
+        const res = await fetch("/api/users/existing/info", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${isSession}`,
+          },
         });
+
+        const response = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          alert(
+            response.error ||
+              response.message ||
+              "회원 정보를 불러오지 못했습니다.",
+          );
+          return;
+        }
+
+        const userData = response.data as TUserProfile;
+
+        setUser(userData);
+        setName(userData?.name || "");
+        setNickname(userData?.nickname || "");
+        setSavedNickname(userData?.nickname || "");
+        setGender(userData?.gender as "MALE" | "FEMALE" | "");
+
+        setBirthDay(
+          userData?.birthDay ? String(userData.birthDay).slice(0, 10) : "",
+        );
+
+        const phoneInfo = splitPhoneNumber(userData?.phoneNumber || null);
+
+        setPhoneCountryCode(phoneInfo.countryCode);
+        setPhoneLocalNumber(phoneInfo.localNumber);
+        setAddress(userData?.address || "");
+        setIsPublic(userData?.isPublic === "FALSE" ? "FALSE" : "TRUE");
+      } catch (error) {
+        console.error("회원 정보 조회 오류:", error);
+        alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     requestUserProfile();
   }, [navigate, isSession]);
 
   const validation = useMemo(() => {
+    const trimmedName = name.trim();
+
     return {
-      nameLength: name.trim().length >= 2 && name.trim().length <= 50,
+      nameLength:
+        trimmedName.length === 0 ||
+        (trimmedName.length >= 2 && trimmedName.length <= 50),
+
       nicknameLength:
         nickname.trim().length >= 2 && nickname.trim().length <= 32,
+
       phonePattern:
         normalizedPhoneLocalNumber.length === 0 ||
         /^[0-9]{7,12}$/.test(normalizedPhoneLocalNumber),
+
       addressLength: address.trim().length <= 100,
     };
   }, [name, nickname, normalizedPhoneLocalNumber, address]);
 
+  const isNicknameChanged = nickname.trim() !== (user?.nickname || "").trim();
+
+  const isNicknameVerified =
+    !isNicknameChanged || nicknameCheckStatus === "available";
+
   const isChanged =
     name !== (user?.name || "") ||
-    nickname !== (user?.nickname || "") ||
+    isNicknameChanged ||
     gender !== (user?.gender || "") ||
     birthDay !== (user?.birthDay ? String(user.birthDay).slice(0, 10) : "") ||
     normalizedPhoneNumber !== (user?.phoneNumber || null) ||
@@ -172,7 +194,59 @@ export default function EditUserPage() {
     validation.nameLength &&
     validation.nicknameLength &&
     validation.phonePattern &&
-    validation.addressLength;
+    validation.addressLength &&
+    isNicknameVerified;
+
+  const handleNicknameCheck = async () => {
+    const trimmedNickname = nickname.trim();
+
+    if (!trimmedNickname) {
+      alert("닉네임을 입력해주세요.");
+      return;
+    }
+
+    if (!validation.nicknameLength) {
+      alert("닉네임은 2자 이상 32자 이하로 입력해주세요.");
+      return;
+    }
+
+    if (trimmedNickname === (user?.nickname || "").trim()) {
+      setNicknameCheckStatus("available");
+      return;
+    }
+
+    try {
+      setNicknameCheckStatus("checking");
+
+      const res = await fetch(
+        `/api/auth/check/nickname?nickname=${encodeURIComponent(
+          trimmedNickname,
+        )}`,
+        {
+          method: "GET",
+        },
+      );
+
+      const response = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setNicknameCheckStatus("available");
+        return;
+      }
+
+      setNicknameCheckStatus("unavailable");
+
+      alert(
+        response.error ||
+          response.message ||
+          "이미 사용 중이거나 사용할 수 없는 닉네임입니다.",
+      );
+    } catch (error) {
+      console.error("닉네임 중복 확인 오류:", error);
+      setNicknameCheckStatus("idle");
+      alert("닉네임 중복 확인 중 오류가 발생했습니다.");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -188,53 +262,99 @@ export default function EditUserPage() {
       return;
     }
 
-    if (!isFormValid) {
-      alert("입력값을 다시 확인해주세요.");
+    if (!validation.nameLength) {
+      alert("이름은 입력 시 2자 이상 50자 이하로 입력해주세요.");
       return;
     }
 
-    const message = confirm("저장하시겠습니까?");
+    if (!validation.nicknameLength) {
+      alert("닉네임은 2자 이상 32자 이하로 입력해주세요.");
+      return;
+    }
 
-    if (!message) return;
+    if (!validation.phonePattern) {
+      alert("전화번호 형식을 확인해주세요.");
+      return;
+    }
 
-    setIsSaving(true);
+    if (!validation.addressLength) {
+      alert("주소는 100자 이하로 입력해주세요.");
+      return;
+    }
 
-    await fetch("/api/users/update", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `${isSession}`,
-      },
-      body: JSON.stringify({
-        name: name.trim(),
-        nickname: nickname.trim(),
-        gender: gender === "" ? null : gender,
-        birthDay: birthDay || null,
-        phoneNumber: normalizedPhoneNumber,
-        address: address.trim() || null,
-        isPublic,
-      }),
-    })
-      .then(async (res) => {
-        if (res.status > 200 && res.status < 500) {
-          const response = await res.json();
-          alert(response.error || response.message);
-          setIsLoading(false);
-        } else if (res.status >= 500) {
-          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
-          return;
-        } else {
-          return res;
-        }
-      })
-      .then(async (res) => {
-        if (res?.ok) {
-          setIsLoading(false);
-          alert("회원 정보 수정이 완료되었습니다.");
-          navigate("/mypage");
-          return res;
-        }
+    if (isNicknameChanged && nicknameCheckStatus !== "available") {
+      alert("변경한 닉네임의 중복 확인을 완료해주세요.");
+      return;
+    }
+
+    if (!confirm("저장하시겠습니까?")) return;
+
+    try {
+      setIsSaving(true);
+
+      const res = await fetch("/api/users/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${isSession}`,
+        },
+        body: JSON.stringify({
+          name: name.trim() || null,
+          nickname: nickname.trim(),
+          gender: gender === "" ? null : gender,
+          birthDay: birthDay || null,
+          phoneNumber: normalizedPhoneNumber,
+          address: address.trim() || null,
+          isPublic,
+        }),
       });
+
+      const response = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          response.error ||
+            response.message ||
+            "회원 정보 수정에 실패했습니다.",
+        );
+      }
+
+      const updatedNickname = nickname.trim();
+
+      /*
+        저장 성공 이후에만 프로필 카드용 닉네임을 갱신합니다.
+      */
+      setSavedNickname(updatedNickname);
+
+      setUser((previousUser) =>
+        previousUser
+          ? {
+              ...previousUser,
+              name: name.trim() || null,
+              nickname: updatedNickname,
+              gender: gender || null,
+              birthDay: birthDay ? new Date(birthDay) : null,
+              phoneNumber: normalizedPhoneNumber,
+              address: address.trim() || null,
+              isPublic,
+            }
+          : previousUser,
+      );
+
+      setNicknameCheckStatus("idle");
+
+      alert("회원 정보 수정이 완료되었습니다.");
+      navigate("/mypage");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "회원 정보 수정 중 오류가 발생했습니다.";
+
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) return <Loading />;
@@ -245,7 +365,9 @@ export default function EditUserPage() {
         <header className="user-edit-page__hero">
           <div className="user-edit-page__hero-main">
             <span className="user-edit-page__badge">ACCOUNT</span>
+
             <h1 className="user-edit-page__title">유저 정보 수정</h1>
+
             <p className="user-edit-page__hero-text">
               기본 회원 정보와 공개 설정을 이곳에서 변경할 수 있어요.
             </p>
@@ -256,12 +378,12 @@ export default function EditUserPage() {
               {user?.image ? (
                 <img src={user.image} alt="프로필 이미지" />
               ) : (
-                <span>{nickname?.[0] || user?.nickname?.[0] || "U"}</span>
+                <span>{savedNickname?.[0] || user?.nickname?.[0] || "U"}</span>
               )}
             </div>
 
             <div className="user-edit-page__profile-summary">
-              <strong>{nickname || "닉네임 없음"}</strong>
+              <strong>{savedNickname || "닉네임 없음"}</strong>
               <span>{user?.email}</span>
             </div>
           </div>
@@ -270,6 +392,7 @@ export default function EditUserPage() {
         <form className="user-edit-page__form-card" onSubmit={handleSubmit}>
           <section className="user-edit-page__section">
             <h2 className="user-edit-page__section-title">기본 정보</h2>
+
             <p className="user-edit-page__required-guide">
               <span
                 className="user-edit-page__required-mark"
@@ -288,6 +411,7 @@ export default function EditUserPage() {
                     (수정 불가)
                   </span>
                 </label>
+
                 <input
                   id="loginId"
                   type="text"
@@ -304,6 +428,7 @@ export default function EditUserPage() {
                     (수정 불가)
                   </span>
                 </label>
+
                 <input
                   id="email"
                   type="text"
@@ -318,26 +443,34 @@ export default function EditUserPage() {
                   이름
                   <span className="user-edit-page__optional-text">(선택)</span>
                 </label>
+
                 <input
                   id="name"
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setIsNameTouched(true);
+                  }}
+                  onBlur={() => setIsNameTouched(true)}
                   placeholder="이름 입력"
                   maxLength={50}
-                  required
-                  aria-required="true"
                   className="user-edit-page__input"
                 />
-                <small
-                  className={
-                    validation.nameLength
-                      ? "user-edit-page__message user-edit-page__message--valid"
-                      : "user-edit-page__message user-edit-page__message--error"
-                  }
-                >
-                  2자 이상 50자 이하로 입력해주세요.
-                </small>
+
+                <div className="user-edit-page__validation-slot">
+                  {isNameTouched && name.trim().length > 0 && (
+                    <small
+                      className={
+                        validation.nameLength
+                          ? "user-edit-page__message user-edit-page__message--valid"
+                          : "user-edit-page__message user-edit-page__message--error"
+                      }
+                    >
+                      2자 이상 50자 이하로 입력해주세요.
+                    </small>
+                  )}
+                </div>
               </div>
 
               <div className="user-edit-page__form-group">
@@ -350,26 +483,76 @@ export default function EditUserPage() {
                     *
                   </span>
                 </label>
-                <input
-                  id="nickname"
-                  type="text"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="닉네임 입력"
-                  maxLength={32}
-                  required
-                  aria-required="true"
-                  className="user-edit-page__input"
-                />
-                <small
-                  className={
-                    validation.nicknameLength
-                      ? "user-edit-page__message user-edit-page__message--valid"
-                      : "user-edit-page__message user-edit-page__message--error"
-                  }
+
+                <div className="user-edit-page__nickname-check-field">
+                  <input
+                    id="nickname"
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => {
+                      setNickname(e.target.value);
+                      setNicknameCheckStatus("idle");
+                    }}
+                    placeholder="닉네임 입력"
+                    maxLength={32}
+                    required
+                    aria-required="true"
+                    className="user-edit-page__input"
+                  />
+
+                  <button
+                    type="button"
+                    className="user-edit-page__nickname-check-button"
+                    disabled={
+                      nicknameCheckStatus === "checking" ||
+                      !validation.nicknameLength
+                    }
+                    onClick={handleNicknameCheck}
+                  >
+                    {nicknameCheckStatus === "checking"
+                      ? "확인 중"
+                      : "중복 확인"}
+                  </button>
+                </div>
+
+                <div
+                  className="user-edit-page__validation-slot"
+                  aria-live="polite"
+                  aria-atomic="true"
                 >
-                  2자 이상 32자 이하로 입력해주세요.
-                </small>
+                  {!validation.nicknameLength && (
+                    <small className="user-edit-page__message user-edit-page__message--error">
+                      닉네임은 2자 이상 32자 이하로 입력해주세요.
+                    </small>
+                  )}
+
+                  {validation.nicknameLength && !isNicknameChanged && (
+                    <small className="user-edit-page__message user-edit-page__message--valid">
+                      현재 사용 중인 닉네임입니다.
+                    </small>
+                  )}
+
+                  {isNicknameChanged && nicknameCheckStatus === "available" && (
+                    <small className="user-edit-page__message user-edit-page__message--success">
+                      사용 가능한 닉네임입니다.
+                    </small>
+                  )}
+
+                  {isNicknameChanged &&
+                    nicknameCheckStatus === "unavailable" && (
+                      <small className="user-edit-page__message user-edit-page__message--error">
+                        이미 사용 중이거나 사용할 수 없는 닉네임입니다.
+                      </small>
+                    )}
+
+                  {isNicknameChanged &&
+                    validation.nicknameLength &&
+                    nicknameCheckStatus === "idle" && (
+                      <small className="user-edit-page__message user-edit-page__message--valid">
+                        닉네임을 변경했다면 중복 확인을 진행해주세요.
+                      </small>
+                    )}
+                </div>
               </div>
 
               <div className="user-edit-page__form-group">
@@ -377,6 +560,7 @@ export default function EditUserPage() {
                   성별
                   <span className="user-edit-page__optional-text">(선택)</span>
                 </label>
+
                 <select
                   id="gender"
                   value={gender}
@@ -396,6 +580,7 @@ export default function EditUserPage() {
                   생년월일
                   <span className="user-edit-page__optional-text">(선택)</span>
                 </label>
+
                 <input
                   id="birthDay"
                   type="date"
@@ -457,6 +642,7 @@ export default function EditUserPage() {
                   주소
                   <span className="user-edit-page__optional-text">(선택)</span>
                 </label>
+
                 <input
                   id="address"
                   type="text"
@@ -466,6 +652,7 @@ export default function EditUserPage() {
                   maxLength={100}
                   className="user-edit-page__input"
                 />
+
                 <small
                   className={
                     validation.addressLength
@@ -482,6 +669,7 @@ export default function EditUserPage() {
                   프로필 공개 여부
                   <span className="user-edit-page__optional-text">(선택)</span>
                 </label>
+
                 <select
                   id="isPublic"
                   value={isPublic}
@@ -499,15 +687,18 @@ export default function EditUserPage() {
 
           <section className="user-edit-page__section">
             <h2 className="user-edit-page__section-title">계정 정보</h2>
+
             <div className="user-edit-page__account-box">
               <div className="user-edit-page__account-row">
                 <span>회원 ID</span>
                 <strong>{user?.id}</strong>
               </div>
+
               <div className="user-edit-page__account-row">
                 <span>이메일</span>
                 <strong>{user?.email}</strong>
               </div>
+
               <div className="user-edit-page__account-row">
                 <span>로그인 ID</span>
                 <strong>{user?.loginId}</strong>

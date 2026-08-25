@@ -14,19 +14,30 @@ type TProfileUser = {
   isPublic: string;
 };
 
+type TNicknameCheckStatus = "idle" | "checking" | "available" | "unavailable";
+
 export default function EditProfilePage() {
   const navigate = useNavigate();
   const isSession = getWithExpiry("ack");
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [user, setUser] = useState<TProfileUser | null>(null);
 
-  const [nickname, setNickname] = useState("");
+  /*
+    nickname: form input에 입력 중인 값
+    savedNickname: 서버에 마지막으로 저장된 값
+  */
+  const [nickname, setNickname] = useState<string>("");
+  const [savedNickname, setSavedNickname] = useState<string>("");
+
   const [isPublic, setIsPublic] = useState<"TRUE" | "FALSE">("TRUE");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBuffer, setImageBuffer] = useState<string | null>();
   const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const [nicknameCheckStatus, setNicknameCheckStatus] =
+    useState<TNicknameCheckStatus>("idle");
 
   useEffect(() => {
     if (!isSession) {
@@ -36,57 +47,127 @@ export default function EditProfilePage() {
     }
 
     const requestProfile = async () => {
-      await fetch("/api/users/existing/profile/info", {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `${isSession}`,
-        },
-      })
-        .then(async (res) => {
-          if (res.status > 200 && res.status < 500) {
-            const response = await res.json();
-            alert(response.error || response.message);
-            setIsLoading(false);
-          } else if (res.status >= 500) {
-            alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
-            return;
-          } else {
-            return res;
-          }
-        })
-        .then(async (res) => {
-          if (res?.ok) {
-            const response = await res.json();
-
-            setUser(response?.data);
-            setNickname(response?.data.nickname || "");
-            setIsPublic(response?.data.isPublic || "TRUE");
-            setImagePreview(imageDecodeToUrl(response?.data.image));
-
-            setIsLoading(false);
-            return res;
-          }
+      try {
+        const res = await fetch("/api/users/existing/profile/info", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `${isSession}`,
+          },
         });
+
+        const response = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          alert(
+            response.error ||
+              response.message ||
+              "프로필 정보를 불러오지 못했습니다.",
+          );
+          return;
+        }
+
+        const profile = response?.data as TProfileUser;
+
+        setUser(profile);
+        setNickname(profile?.nickname || "");
+        setSavedNickname(profile?.nickname || "");
+        setIsPublic(profile?.isPublic === "FALSE" ? "FALSE" : "TRUE");
+        setImagePreview(imageDecodeToUrl(profile?.image));
+      } catch (error) {
+        console.error("프로필 조회 오류:", error);
+        alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     requestProfile();
   }, [navigate, isSession]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
   const validation = useMemo(() => {
+    const trimmedNickname = nickname.trim();
+
     return {
       nicknameLength:
-        nickname.trim().length >= 2 && nickname.trim().length <= 32,
+        trimmedNickname.length >= 2 && trimmedNickname.length <= 32,
     };
   }, [nickname]);
 
-  const isChanged =
-    nickname !== (user?.nickname || "") ||
-    isPublic !== (user?.isPublic || "TRUE") ||
-    imagePreview !== (user?.image || null) ||
-    imageFile !== null;
+  const originalImageUrl = imageDecodeToUrl(user?.image as string);
 
-  const isFormValid = validation.nicknameLength;
+  const isNicknameChanged = nickname.trim() !== (user?.nickname || "").trim();
+
+  const isNicknameVerified =
+    !isNicknameChanged || nicknameCheckStatus === "available";
+
+  const isChanged =
+    isNicknameChanged ||
+    isPublic !== (user?.isPublic === "FALSE" ? "FALSE" : "TRUE") ||
+    imagePreview !== originalImageUrl ||
+    imageFile !== null ||
+    imageBuffer === "REMOVE";
+
+  const isFormValid = validation.nicknameLength && isNicknameVerified;
+
+  const handleNicknameCheck = async () => {
+    const trimmedNickname = nickname.trim();
+
+    if (!trimmedNickname) {
+      alert("닉네임을 입력해주세요.");
+      return;
+    }
+
+    if (!validation.nicknameLength) {
+      alert("닉네임은 2자 이상 32자 이하로 입력해주세요.");
+      return;
+    }
+
+    if (trimmedNickname === (user?.nickname || "").trim()) {
+      setNicknameCheckStatus("available");
+      return;
+    }
+
+    try {
+      setNicknameCheckStatus("checking");
+
+      const res = await fetch(
+        `/api/auth/check/nickname?nickname=${encodeURIComponent(
+          trimmedNickname,
+        )}`,
+        {
+          method: "GET",
+        },
+      );
+
+      const response = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setNicknameCheckStatus("available");
+        return;
+      }
+
+      setNicknameCheckStatus("unavailable");
+
+      alert(
+        response.error ||
+          response.message ||
+          "이미 사용 중이거나 사용할 수 없는 닉네임입니다.",
+      );
+    } catch (error) {
+      console.error("닉네임 중복 확인 오류:", error);
+      setNicknameCheckStatus("idle");
+      alert("닉네임 중복 확인 중 오류가 발생했습니다.");
+    }
+  };
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,6 +176,11 @@ export default function EditProfilePage() {
 
     if (file.size > 10 * 1024 * 1024) {
       alert("이미지 파일은 10MB 이내로 등록 가능합니다.");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 등록할 수 있습니다.");
       return;
     }
 
@@ -123,51 +209,73 @@ export default function EditProfilePage() {
       return;
     }
 
-    if (!isFormValid) {
-      alert("입력값을 다시 확인해주세요.");
+    if (!validation.nicknameLength) {
+      alert("닉네임은 2자 이상 32자 이하로 입력해주세요.");
       return;
     }
 
-    const message = confirm("저장하시겠습니까?");
+    if (isNicknameChanged && nicknameCheckStatus !== "available") {
+      alert("변경한 닉네임의 중복 확인을 완료해주세요.");
+      return;
+    }
 
-    if (!message) return;
+    if (!confirm("저장하시겠습니까?")) return;
 
-    setIsSaving(true);
+    try {
+      setIsSaving(true);
 
-    await fetch("/api/users/profile/update", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `${isSession}`,
-      },
-      body: JSON.stringify({
-        nickname: nickname,
-        isPublic: isPublic,
-        image: imageBuffer,
-      }),
-    })
-      .then(async (res) => {
-        if (res.status > 200 && res.status < 500) {
-          const response = await res.json();
-          alert(response.error || response.message);
-          setIsLoading(false);
-        } else if (res.status >= 500) {
-          const response = await res.json();
-          console.log("response: ", response);
-          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
-          return;
-        } else {
-          return res;
-        }
-      })
-      .then((res) => {
-        if (res?.ok) {
-          setIsLoading(false);
-          alert("프로필 수정이 완료되었습니다.");
-          navigate("/mypage");
-          return res;
-        }
+      const res = await fetch("/api/users/profile/update", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `${isSession}`,
+        },
+        body: JSON.stringify({
+          nickname: nickname.trim(),
+          isPublic,
+          image: imageBuffer,
+        }),
       });
+
+      const response = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          response.error || response.message || "프로필 수정에 실패했습니다.",
+        );
+      }
+
+      const updatedNickname = nickname.trim();
+
+      /*
+        저장이 성공했을 때만 오른쪽 카드의 닉네임을 변경합니다.
+      */
+      setSavedNickname(updatedNickname);
+
+      setUser((previousUser) =>
+        previousUser
+          ? {
+              ...previousUser,
+              nickname: updatedNickname,
+              isPublic,
+            }
+          : previousUser,
+      );
+
+      setNicknameCheckStatus("idle");
+
+      alert("프로필 수정이 완료되었습니다.");
+      navigate("/mypage");
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "프로필 수정 중 오류가 발생했습니다.";
+
+      alert(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (isLoading) return <Loading />;
@@ -178,7 +286,9 @@ export default function EditProfilePage() {
         <header className="profile-edit-page__hero">
           <div className="profile-edit-page__hero-main">
             <span className="profile-edit-page__badge">PROFILE</span>
+
             <h1 className="profile-edit-page__title">프로필 수정</h1>
+
             <p className="profile-edit-page__hero-text">
               프로필 이미지, 대표 닉네임, 공개 여부를 수정할 수 있어요.
             </p>
@@ -187,14 +297,15 @@ export default function EditProfilePage() {
           <div className="profile-edit-page__preview-card">
             <div className="profile-edit-page__avatar">
               {imagePreview ? (
-                <img src={imagePreview} />
+                <img src={imagePreview} alt="프로필 미리보기" />
               ) : (
-                <span>{nickname?.[0] || user?.nickname?.[0] || "U"}</span>
+                <span>{savedNickname?.[0] || user?.nickname?.[0] || "U"}</span>
               )}
             </div>
 
             <div className="profile-edit-page__preview-summary">
-              <strong>{nickname || "닉네임 없음"}</strong>
+              <strong>{savedNickname || "닉네임 없음"}</strong>
+
               <span>
                 {isPublic === "TRUE" ? "공개 프로필" : "비공개 프로필"}
               </span>
@@ -205,9 +316,11 @@ export default function EditProfilePage() {
         <form className="profile-edit-page__form-card" onSubmit={handleSubmit}>
           <section className="profile-edit-page__section">
             <h2 className="profile-edit-page__section-title">프로필 정보</h2>
+
             <p className="profile-edit-page__section-text">
               공개 프로필에 노출될 기본 정보를 수정할 수 있습니다.
             </p>
+
             <p className="profile-edit-page__required-guide">
               <span
                 className="profile-edit-page__required-mark"
@@ -230,9 +343,11 @@ export default function EditProfilePage() {
                 <div className="profile-edit-page__image-box">
                   <div className="profile-edit-page__image-preview">
                     {imagePreview ? (
-                      <img src={imagePreview} />
+                      <img src={imagePreview} alt="프로필 이미지 미리보기" />
                     ) : (
-                      <span>{nickname?.[0] || user?.nickname?.[0] || "U"}</span>
+                      <span>
+                        {savedNickname?.[0] || user?.nickname?.[0] || "U"}
+                      </span>
                     )}
                   </div>
 
@@ -243,6 +358,7 @@ export default function EditProfilePage() {
                     >
                       이미지 선택
                     </label>
+
                     <input
                       id="profileImage"
                       type="file"
@@ -250,6 +366,7 @@ export default function EditProfilePage() {
                       onChange={handleImageChange}
                       className="profile-edit-page__file-input"
                     />
+
                     <button
                       type="button"
                       className="profile-edit-page__remove-button"
@@ -257,6 +374,7 @@ export default function EditProfilePage() {
                     >
                       이미지 제거
                     </button>
+
                     <small className="profile-edit-page__message profile-edit-page__message--valid">
                       JPG, PNG 형식의 이미지를 권장합니다.
                     </small>
@@ -274,26 +392,76 @@ export default function EditProfilePage() {
                     *
                   </span>
                 </label>
-                <input
-                  id="nickname"
-                  type="text"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="대표 닉네임 입력"
-                  maxLength={32}
-                  required
-                  aria-required="true"
-                  className="profile-edit-page__input"
-                />
-                <small
-                  className={
-                    validation.nicknameLength
-                      ? "profile-edit-page__message profile-edit-page__message--valid"
-                      : "profile-edit-page__message profile-edit-page__message--error"
-                  }
+
+                <div className="profile-edit-page__nickname-check-field">
+                  <input
+                    id="nickname"
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => {
+                      setNickname(e.target.value);
+                      setNicknameCheckStatus("idle");
+                    }}
+                    placeholder="대표 닉네임 입력"
+                    maxLength={32}
+                    required
+                    aria-required="true"
+                    className="profile-edit-page__input"
+                  />
+
+                  <button
+                    type="button"
+                    className="profile-edit-page__nickname-check-button"
+                    disabled={
+                      nicknameCheckStatus === "checking" ||
+                      !validation.nicknameLength
+                    }
+                    onClick={handleNicknameCheck}
+                  >
+                    {nicknameCheckStatus === "checking"
+                      ? "확인 중"
+                      : "중복 확인"}
+                  </button>
+                </div>
+
+                <div
+                  className="profile-edit-page__validation-slot"
+                  aria-live="polite"
+                  aria-atomic="true"
                 >
-                  2자 이상 32자 이하로 입력해주세요.
-                </small>
+                  {!validation.nicknameLength && (
+                    <small className="profile-edit-page__message profile-edit-page__message--error">
+                      닉네임은 2자 이상 32자 이하로 입력해주세요.
+                    </small>
+                  )}
+
+                  {validation.nicknameLength && !isNicknameChanged && (
+                    <small className="profile-edit-page__message profile-edit-page__message--valid">
+                      현재 사용 중인 닉네임입니다.
+                    </small>
+                  )}
+
+                  {isNicknameChanged && nicknameCheckStatus === "available" && (
+                    <small className="profile-edit-page__message profile-edit-page__message--success">
+                      사용 가능한 닉네임입니다.
+                    </small>
+                  )}
+
+                  {isNicknameChanged &&
+                    nicknameCheckStatus === "unavailable" && (
+                      <small className="profile-edit-page__message profile-edit-page__message--error">
+                        이미 사용 중이거나 사용할 수 없는 닉네임입니다.
+                      </small>
+                    )}
+
+                  {isNicknameChanged &&
+                    validation.nicknameLength &&
+                    nicknameCheckStatus === "idle" && (
+                      <small className="profile-edit-page__message profile-edit-page__message--valid">
+                        닉네임을 변경했다면 중복 확인을 진행해주세요.
+                      </small>
+                    )}
+                </div>
               </div>
 
               <div className="profile-edit-page__form-group">
@@ -303,6 +471,7 @@ export default function EditProfilePage() {
                     (선택)
                   </span>
                 </label>
+
                 <select
                   id="isPublic"
                   value={isPublic}
@@ -320,15 +489,18 @@ export default function EditProfilePage() {
 
           <section className="profile-edit-page__section">
             <h2 className="profile-edit-page__section-title">계정 정보</h2>
+
             <div className="profile-edit-page__account-box">
               <div className="profile-edit-page__account-row">
                 <span>회원 ID</span>
                 <strong>{user?.id}</strong>
               </div>
+
               <div className="profile-edit-page__account-row">
                 <span>이메일</span>
                 <strong>{user?.email}</strong>
               </div>
+
               <div className="profile-edit-page__account-row">
                 <span>로그인 ID</span>
                 <strong>{user?.loginId}</strong>

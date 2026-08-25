@@ -285,6 +285,67 @@
   box-shadow: none;
 }
 
+.user-edit-page__nickname-check-field {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.user-edit-page__nickname-check-field .user-edit-page__input {
+  min-width: 0;
+  flex: 1;
+}
+
+.user-edit-page__nickname-check-button {
+  min-width: 92px;
+  height: 52px;
+  padding: 0 14px;
+  border: 1px solid #bfdbfe;
+  border-radius: 16px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.user-edit-page__nickname-check-button:hover:not(:disabled) {
+  border-color: #60a5fa;
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+
+.user-edit-page__nickname-check-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.user-edit-page__nickname-check-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/*
+  이름/닉네임 메시지가 나타나도
+  같은 row의 반대쪽 input과 정렬이 유지되도록 공간을 확보합니다.
+*/
+.user-edit-page__validation-slot {
+  display: flex;
+  align-items: flex-start;
+  min-height: 28px;
+  padding-top: 8px;
+}
+
+.user-edit-page__validation-slot .user-edit-page__message {
+  margin: 0;
+}
+
 .user-edit-page__message {
   margin-top: 8px;
   font-size: 13px;
@@ -293,6 +354,10 @@
 
 .user-edit-page__message--valid {
   color: #6b7280;
+}
+
+.user-edit-page__message--success {
+  color: #15803d;
 }
 
 .user-edit-page__message--error {
@@ -424,6 +489,14 @@
 
   .user-edit-page__form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .user-edit-page__nickname-check-field {
+    flex-direction: column;
+  }
+
+  .user-edit-page__nickname-check-button {
+    width: 100%;
   }
 
   .user-edit-page__phone-field {
