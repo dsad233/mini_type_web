@@ -109,5 +109,9 @@ export function imageDecodeToUrl(image: string | null): string | null {
   return url;
 }
 
-// 이미지 Blob 화 함수
-export function imageBlob() {}
+// regex 패턴
+export const Regex = {
+  email:
+    /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|.(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
+  loginId: /^[a-zA-Z0-9]{2,13}$/,
+};

@@ -36,13 +36,13 @@ body {
 }
 
 .mypage .profile-card {
-  background: #ffffff;
-  border-radius: 28px;
-  padding: 28px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
-  align-items: center;
+  padding: 28px;
+  border-radius: 28px;
+  background: #ffffff;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
 }
 
@@ -54,12 +54,12 @@ body {
 }
 
 .mypage .profile-avatar {
-  width: 88px;
-  height: 88px;
-  flex: 0 0 88px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 88px;
+  height: 88px;
+  flex: 0 0 88px;
   overflow: hidden;
   padding: 0;
   border-radius: 28px;
@@ -87,13 +87,13 @@ body {
 
 .mypage .profile-badge {
   display: inline-flex;
+  margin-bottom: 12px;
   padding: 8px 12px;
   border-radius: 999px;
   background: #e0e7ff;
   color: #3730a3;
   font-size: 12px;
   font-weight: 700;
-  margin-bottom: 12px;
 }
 
 .mypage .profile-copy {
@@ -131,20 +131,22 @@ body {
 
 .mypage .profile-actions {
   display: flex;
-  align-items: center;
-  gap: 12px;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
 }
 
 .mypage .mypage-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 120px;
   height: 48px;
   padding: 0 18px;
   border: none;
   border-radius: 14px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   background: #111827;
   color: #ffffff;
   font-size: 15px;
@@ -162,6 +164,106 @@ body {
   transform: translateY(-1px);
 }
 
+/* Google 계정 연동 버튼 */
+
+.mypage .mypage-google-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 172px;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.mypage .mypage-google-link-btn:hover:not(:disabled) {
+  border-color: #9ca3af;
+  background: #f9fafb;
+  box-shadow: 0 8px 18px rgba(17, 24, 39, 0.08);
+  transform: translateY(-1px);
+}
+
+.mypage .mypage-google-link-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.mypage .mypage-google-link-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Google 아이콘 공통 */
+
+.mypage .mypage-google-provider-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 220deg,
+    #4285f4 0deg 90deg,
+    #34a853 90deg 180deg,
+    #fbbc05 180deg 270deg,
+    #ea4335 270deg 360deg
+  );
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* Google 계정 연결 완료 배지 */
+
+.mypage .mypage-google-linked-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 180px;
+  height: 48px;
+  padding: 0 14px 0 10px;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mypage .mypage-google-linked-badge::after {
+  content: "✓";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .mypage .summary-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -171,17 +273,17 @@ body {
 .mypage .summary-card {
   min-width: 0;
   padding: 24px;
-  background: #ffffff;
   border-radius: 24px;
+  background: #ffffff;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
 }
 
 .mypage .summary-card strong {
   display: block;
   margin-bottom: 8px;
-  overflow-wrap: anywhere;
   font-size: 28px;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .mypage .summary-card span {
@@ -197,8 +299,8 @@ body {
 
 .mypage .mypage-main,
 .mypage .mypage-side {
-  min-width: 0;
   display: grid;
+  min-width: 0;
   gap: 24px;
 }
 
@@ -206,8 +308,8 @@ body {
 .mypage .mypage-panel {
   min-width: 0;
   padding: 24px;
-  background: #ffffff;
   border-radius: 28px;
+  background: #ffffff;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
 }
 
@@ -310,10 +412,10 @@ body {
 
 .mypage .post-item-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 12px;
   color: #4b5563;
   font-size: 14px;
-  flex-wrap: wrap;
 }
 
 .mypage .comment-item p {
@@ -358,14 +460,14 @@ body {
 
 .mypage .quick-menu button {
   height: 48px;
+  padding: 0 16px;
   border: none;
   border-radius: 16px;
   background: #f3f4f6;
   color: #111827;
   font-weight: 600;
-  cursor: pointer;
   text-align: left;
-  padding: 0 16px;
+  cursor: pointer;
   transition:
     background 0.2s ease,
     color 0.2s ease,
@@ -376,6 +478,16 @@ body {
   background: #e0e7ff;
   color: #3730a3;
   transform: translateX(2px);
+}
+
+.mypage .quick-menu .mypage-account-remove-btn {
+  background: #fff1f2;
+  color: #b91c1c;
+}
+
+.mypage .quick-menu .mypage-account-remove-btn:hover {
+  background: #ffe4e6;
+  color: #991b1b;
 }
 
 .mypage .highlight-panel {
@@ -404,6 +516,7 @@ body {
   }
 
   .mypage .mypage-side {
+    display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
   }
@@ -434,9 +547,9 @@ body {
   }
 
   .mypage .profile-main {
-    width: 100%;
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
   }
 
   .mypage .profile-copy h1 {
@@ -445,10 +558,17 @@ body {
 
   .mypage .profile-actions {
     width: 100%;
+    justify-content: stretch;
   }
 
-  .mypage .mypage-primary-btn {
+  .mypage .mypage-primary-btn,
+  .mypage .mypage-google-link-btn,
+  .mypage .mypage-google-linked-badge {
     width: 100%;
+  }
+
+  .mypage .mypage-google-linked-badge {
+    justify-content: center;
   }
 
   .mypage .summary-grid {
@@ -491,8 +611,8 @@ body {
   }
 
   .mypage .profile-meta {
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .mypage .profile-meta span {
@@ -509,8 +629,8 @@ body {
   }
 
   .mypage .status-list div {
-    align-items: flex-start;
     flex-direction: column;
+    align-items: flex-start;
   }
 
   .mypage .status-list strong {

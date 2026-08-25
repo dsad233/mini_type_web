@@ -18,6 +18,7 @@ import MyPostsPage from "./pages/users/myPostsPage.tsx";
 import EditUserPage from "./pages/users/editUserPage.tsx";
 import EditProfilePage from "./pages/users/editProfilePage.tsx";
 import GoogleRedirect from "./pages/auth/googleRedirect.tsx";
+import GoogleLinkRedirect from "./pages/auth/googleLinkRedirect.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
@@ -31,7 +32,8 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/auth/email/verify" element={<VerifyPage />} />
         <Route path="/auth/password/forgot" element={<CertifiEmail />} />
         <Route path="/auth/password/reset" element={<ResetPassword />} />
-        <Route path="/login/google/redirect" element={<GoogleRedirect />} />
+        <Route path="/signin/google/redirect" element={<GoogleRedirect />} />
+        <Route path="/link/google/redirect" element={<GoogleLinkRedirect />} />
         // users
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/users/comments" element={<MyCommentsPage />} />
