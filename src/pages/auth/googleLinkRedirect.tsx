@@ -37,7 +37,7 @@ export default function GoogleLinkRedirect() {
         if (!isCancelled) {
           navigate("/mypage", { replace: true });
         }
-      }, 1500);
+      }, GOOGLE_LINK_TIMEOUT - 3000);
     };
 
     const requestLinkGoogle = async () => {
