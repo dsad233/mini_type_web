@@ -126,14 +126,6 @@ export default function SignUp() {
       const isAvailable = response.verify === true;
 
       setStatus(isAvailable ? "available" : "unavailable");
-
-      if (!isAvailable) {
-        alert(
-          response.error ||
-            response.message ||
-            `이미 사용 중인 ${fieldLabel}입니다.`,
-        );
-      }
     } catch (error) {
       console.error(`${fieldLabel} 중복 확인 오류:`, error);
       setStatus("idle");

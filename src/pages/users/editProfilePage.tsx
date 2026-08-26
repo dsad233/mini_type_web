@@ -150,18 +150,12 @@ export default function EditProfilePage() {
 
       const response = await res.json().catch(() => ({}));
 
-      if (res.ok) {
+      if (res.ok && response.verify) {
         setNicknameCheckStatus("available");
         return;
       }
 
       setNicknameCheckStatus("unavailable");
-
-      alert(
-        response.error ||
-          response.message ||
-          "이미 사용 중이거나 사용할 수 없는 닉네임입니다.",
-      );
     } catch (error) {
       console.error("닉네임 중복 확인 오류:", error);
       setNicknameCheckStatus("idle");
