@@ -8,14 +8,19 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   server: {
     host: "0.0.0.0",
-    port: 5173,
+    port: 3444,
     proxy: {
       "/api": {
-        target: "http://localhost:3000",
+        target: "http://localhost:3011",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
+  },
+  preview: {
+    host: "0.0.0.0",
+    port: 3444,
+    allowedHosts: ["nanunya.ggm.kr"],
   },
   resolve: {
     alias: [
