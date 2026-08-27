@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
-import { getWithExpiry, imageDecodeToUrl } from "./utils";
+import { imageDecodeToUrl } from "./utils";
 import { Loading } from "./components";
 
 type TCategoriesRes = {
@@ -42,12 +42,12 @@ type TPopulerUsers = {
 
 export default function App() {
   const navigate = useNavigate();
-  const isSession = getWithExpiry("ack");
+  // const isSession = getWithExpiry("ack");
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [inputSearch, setInputSearch] = useState<string>("");
   const [categories, setCategories] = useState<Array<TCategoriesRes>>([]);
-  const [selectCategory, setSelectCategory] = useState<string>("");
+  // const [selectCategory, setSelectCategory] = useState<string>("");
   const [posts, setPosts] = useState<TPosts>([]);
   const [userCount, setUserCount] = useState<number>(0);
   const [commentCount, setCommentCount] = useState<number>(0);

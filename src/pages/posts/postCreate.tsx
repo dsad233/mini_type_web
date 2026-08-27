@@ -4,7 +4,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
-import { TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import "../../styles/posts/postCreate.css";
 import { getWithExpiry } from "@src/utils";
 import { Loading } from "@src/components";
@@ -71,7 +71,6 @@ export default function PostCreate() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [title, setTitle] = useState<string>("");
@@ -92,14 +91,6 @@ export default function PostCreate() {
       CustomImage.configure({
         inline: false,
         allowBase64: false,
-
-        resize: {
-          enabled: true,
-          directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
-          minWidth: 120,
-          minHeight: 80,
-          alwaysPreserveAspectRatio: true,
-        },
       }),
     ],
 
@@ -113,7 +104,7 @@ export default function PostCreate() {
 
     const { state, view } = editor;
 
-    if (!state.selection.node) {
+    if (!(state.selection instanceof NodeSelection)) {
       return;
     }
 
@@ -203,10 +194,13 @@ export default function PostCreate() {
       editor
         .chain()
         .focus()
-        .setImage({
-          src: previewUrl,
-          alt: file.name,
-          imageId: id,
+        .insertContent({
+          type: "image",
+          attrs: {
+            src: previewUrl,
+            alt: file.name,
+            imageId: id,
+          },
         })
         .run();
     } catch (error) {
@@ -224,17 +218,6 @@ export default function PostCreate() {
   const convertEditorHtmlToRequestData = (html: string) => {
     const documentNode = new DOMParser().parseFromString(html, "text/html");
 
-    /*
-      중요:
-      Enter를 두 번 눌러 만든 빈 문단은 getHTML()에서 <p></p>가 됩니다.
-      빈 p는 상세 화면에서 높이가 사라질 수 있으므로 &nbsp;로 보존합니다.
-
-      예:
-      <p>test</p><p></p><p>dsdadd</p>
-
-      저장 후:
-      <p>test</p><p>&nbsp;</p><p>dsdadd</p>
-    */
     const paragraphElements =
       documentNode.querySelectorAll<HTMLParagraphElement>("p");
 
@@ -255,20 +238,12 @@ export default function PostCreate() {
     imageElements.forEach((imageElement) => {
       const imageId = imageElement.getAttribute("data-image-id");
 
-      /*
-        imageId가 없는 이미지는 외부 URL 등입니다.
-        생성 화면에서는 보통 없지만 그대로 유지합니다.
-      */
       if (!imageId) {
         return;
       }
 
       const pendingImage = pendingImages.find((image) => image.id === imageId);
 
-      /*
-        사용자가 에디터에서 삭제한 새 이미지라면
-        최종 context에서도 제거합니다.
-      */
       if (!pendingImage) {
         imageElement.remove();
         return;
@@ -278,10 +253,6 @@ export default function PostCreate() {
 
       images.push(pendingImage.base64);
 
-      /*
-        Blob URL은 현재 브라우저에서만 유효하므로
-        context에는 images 배열을 가리키는 참조값을 저장합니다.
-      */
       imageElement.setAttribute("src", `image://${imageIndex}`);
 
       const savedWidth =
@@ -316,9 +287,6 @@ export default function PostCreate() {
         imageElement.style.height = height;
       }
 
-      /*
-        프론트에서만 사용하는 임시 식별자는 저장하지 않습니다.
-      */
       imageElement.removeAttribute("data-image-id");
     });
 
@@ -381,7 +349,7 @@ export default function PostCreate() {
         }),
       });
 
-      const response = await res.json();
+      const response = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(
@@ -408,15 +376,8 @@ export default function PostCreate() {
   useEffect(() => {
     if (!isSession) {
       alert("로그인이 필요한 페이지입니다.");
-      navigate("/signin");
-      return;
+      navigate("/signin", { replace: true });
     }
-
-    const loading = async () => {
-      setIsLoading(false);
-    };
-
-    loading();
   }, [isSession, navigate]);
 
   useEffect(() => {
@@ -447,193 +408,190 @@ export default function PostCreate() {
     };
   }, [pendingImages]);
 
+  if (!isSession) {
+    return <Loading />;
+  }
+
   return (
-    <>
-      {isLoading ? (
-        <Loading />
-      ) : (
-        <main className="create-post-page">
-          <section className="create-post-shell">
-            <aside className="create-post-aside">
-              <span className="create-post-badge">WRITE POST</span>
+    <main className="create-post-page">
+      <section className="create-post-shell">
+        <aside className="create-post-aside">
+          <span className="create-post-badge">WRITE POST</span>
 
-              <h1>새 게시글 작성</h1>
+          <h1>새 게시글 작성</h1>
 
-              <p>
-                텍스트와 이미지를 자유롭게 배치해서 나만의 게시글을
-                작성해보세요.
-              </p>
+          <p>
+            텍스트와 이미지를 자유롭게 배치해서 나만의 게시글을 작성해보세요.
+          </p>
 
-              <div className="create-post-guide">
-                <div className="create-post-guide-item">
-                  <strong>이미지를 본문에 추가</strong>
+          <div className="create-post-guide">
+            <div className="create-post-guide-item">
+              <strong>이미지를 본문에 추가</strong>
 
-                  <span>
-                    원하는 위치에 커서를 둔 뒤 이미지 추가 버튼을 눌러주세요.
-                  </span>
-                </div>
+              <span>
+                원하는 위치에 커서를 둔 뒤 이미지 추가 버튼을 눌러주세요.
+              </span>
+            </div>
 
-                <div className="create-post-guide-item">
-                  <strong>크기와 위치 조절</strong>
+            <div className="create-post-guide-item">
+              <strong>크기와 위치 조절</strong>
 
-                  <span>
-                    이미지를 클릭하면 네 모서리에 표시되는 점을 드래그해 크기를
-                    바꿀 수 있습니다.
-                  </span>
-                </div>
+              <span>
+                이미지를 클릭하면 네 모서리에 표시되는 점을 드래그해 크기를 바꿀
+                수 있습니다.
+              </span>
+            </div>
 
-                <div className="create-post-guide-item">
-                  <strong>줄바꿈과 공백 유지</strong>
+            <div className="create-post-guide-item">
+              <strong>줄바꿈과 공백 유지</strong>
 
-                  <span>
-                    엔터로 만든 빈 줄과 문단 간격도 게시글에 그대로 저장됩니다.
-                  </span>
-                </div>
+              <span>
+                엔터로 만든 빈 줄과 문단 간격도 게시글에 그대로 저장됩니다.
+              </span>
+            </div>
+          </div>
+        </aside>
+
+        <section
+          className="create-post-card"
+          aria-labelledby="create-post-title"
+        >
+          <div className="create-post-head">
+            <span className="create-post-badge create-post-badge--soft">
+              POST FORM
+            </span>
+
+            <h2 id="create-post-title">게시글 정보</h2>
+
+            <p>이미지, 문단, 빈 줄을 작성한 그대로 저장할 수 있습니다.</p>
+          </div>
+
+          <form className="create-post-form" onSubmit={handlePostCreate}>
+            <div className="create-post-field">
+              <label htmlFor="title">제목</label>
+
+              <input
+                id="title"
+                name="title"
+                type="text"
+                placeholder="예: 여행 사진과 함께 남기는 후기"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+
+            <div className="create-post-row">
+              <div className="create-post-field">
+                <label htmlFor="category">카테고리</label>
+
+                <select
+                  id="category"
+                  name="category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  disabled={isSubmitting}
+                >
+                  <option value="FREE">자유</option>
+                  <option value="SPORTS">스포츠</option>
+                  <option value="GAME">게임</option>
+                </select>
               </div>
-            </aside>
 
-            <section
-              className="create-post-card"
-              aria-labelledby="create-post-title"
-            >
-              <div className="create-post-head">
-                <span className="create-post-badge create-post-badge--soft">
-                  POST FORM
-                </span>
+              <div className="create-post-field">
+                <span className="create-post-label">공개 여부</span>
 
-                <h2 id="create-post-title">게시글 정보</h2>
-
-                <p>이미지, 문단, 빈 줄을 작성한 그대로 저장할 수 있습니다.</p>
-              </div>
-
-              <form className="create-post-form" onSubmit={handlePostCreate}>
-                <div className="create-post-field">
-                  <label htmlFor="title">제목</label>
-
-                  <input
-                    id="title"
-                    name="title"
-                    type="text"
-                    placeholder="예: 여행 사진과 함께 남기는 후기"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    disabled={isSubmitting}
-                  />
-                </div>
-
-                <div className="create-post-row">
-                  <div className="create-post-field">
-                    <label htmlFor="category">카테고리</label>
-
-                    <select
-                      id="category"
-                      name="category"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      disabled={isSubmitting}
-                    >
-                      <option value="FREE">자유</option>
-                      <option value="SPORTS">스포츠</option>
-                      <option value="GAME">게임</option>
-                    </select>
-                  </div>
-
-                  <div className="create-post-field">
-                    <span className="create-post-label">공개 여부</span>
-
-                    <div className="create-post-radio-group">
-                      <label className="create-post-radio">
-                        <input
-                          type="radio"
-                          name="isPublic"
-                          value="TRUE"
-                          checked={isPublic === "TRUE"}
-                          onChange={(e) => setIsPublic(e.target.value)}
-                          disabled={isSubmitting}
-                        />
-
-                        <span>공개</span>
-                      </label>
-
-                      <label className="create-post-radio">
-                        <input
-                          type="radio"
-                          name="isPublic"
-                          value="FALSE"
-                          checked={isPublic === "FALSE"}
-                          onChange={(e) => setIsPublic(e.target.value)}
-                          disabled={isSubmitting}
-                        />
-
-                        <span>비공개</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="create-post-field">
-                  <div className="create-post-editor-head">
-                    <label>본문</label>
-
-                    <button
-                      type="button"
-                      className="create-post-image-upload-btn"
-                      onClick={handleChooseImage}
-                      disabled={isSubmitting}
-                    >
-                      이미지 추가
-                    </button>
-
+                <div className="create-post-radio-group">
+                  <label className="create-post-radio">
                     <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      onChange={handleImageSelect}
+                      type="radio"
+                      name="isPublic"
+                      value="TRUE"
+                      checked={isPublic === "TRUE"}
+                      onChange={(e) => setIsPublic(e.target.value)}
                       disabled={isSubmitting}
-                      hidden
                     />
-                  </div>
 
-                  <div
-                    className="post-rich-editor"
-                    onMouseDown={(event) => {
-                      if (event.target === event.currentTarget) {
-                        clearImageSelection();
-                      }
-                    }}
-                  >
-                    <EditorContent editor={editor} />
-                  </div>
+                    <span>공개</span>
+                  </label>
 
-                  <small>
-                    엔터를 두 번 누르면 빈 줄이 저장됩니다. 이미지는 클릭 후
-                    모서리를 드래그해 크기를 조절할 수 있습니다.
-                  </small>
+                  <label className="create-post-radio">
+                    <input
+                      type="radio"
+                      name="isPublic"
+                      value="FALSE"
+                      checked={isPublic === "FALSE"}
+                      onChange={(e) => setIsPublic(e.target.value)}
+                      disabled={isSubmitting}
+                    />
+
+                    <span>비공개</span>
+                  </label>
                 </div>
+              </div>
+            </div>
 
-                <div className="create-post-actions">
-                  <button
-                    type="button"
-                    className="create-post-cancel-btn"
-                    onClick={() => navigate(-1)}
-                    disabled={isSubmitting}
-                  >
-                    취소
-                  </button>
+            <div className="create-post-field">
+              <div className="create-post-editor-head">
+                <label>본문</label>
 
-                  <button
-                    type="submit"
-                    className="create-post-submit-btn"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? "게시글 등록 중..." : "게시글 등록"}
-                  </button>
-                </div>
-              </form>
-            </section>
-          </section>
-        </main>
-      )}
-    </>
+                <button
+                  type="button"
+                  className="create-post-image-upload-btn"
+                  onClick={handleChooseImage}
+                  disabled={isSubmitting}
+                >
+                  이미지 추가
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleImageSelect}
+                  disabled={isSubmitting}
+                  hidden
+                />
+              </div>
+
+              <div
+                className="post-rich-editor"
+                onMouseDown={(event) => {
+                  if (event.target === event.currentTarget) {
+                    clearImageSelection();
+                  }
+                }}
+              >
+                <EditorContent editor={editor} />
+              </div>
+
+              <small>
+                엔터를 두 번 누르면 빈 줄이 저장됩니다. 이미지는 클릭 후
+                모서리를 드래그해 크기를 조절할 수 있습니다.
+              </small>
+            </div>
+
+            <div className="create-post-actions">
+              <button
+                type="button"
+                className="create-post-cancel-btn"
+                onClick={() => navigate(-1)}
+                disabled={isSubmitting}
+              >
+                취소
+              </button>
+
+              <button
+                type="submit"
+                className="create-post-submit-btn"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "게시글 등록 중..." : "게시글 등록"}
+              </button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
   );
 }

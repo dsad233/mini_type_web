@@ -4,7 +4,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
 import { Dropcursor } from "@tiptap/extension-dropcursor";
-import { TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import "../../styles/posts/postUpdate.css";
 import { getWithExpiry } from "@src/utils";
 import { Loading } from "@src/components";
@@ -160,11 +160,6 @@ export default function PostUpdate() {
   const [category, setCategory] = useState<string>("FREE");
   const [isPublic, setIsPublic] = useState<string>("TRUE");
   const [existingContext, setExistingContext] = useState<string>("");
-
-  /*
-    기존 서버 이미지와 새로 추가한 이미지를 모두 같은 구조로 관리합니다.
-    이 배열 순서가 아닌 "본문 img 요소 순서"로 최종 images[]를 다시 구성합니다.
-  */
   const [editorImages, setEditorImages] = useState<TExistingImage[]>([]);
 
   const editor = useEditor({
@@ -179,14 +174,6 @@ export default function PostUpdate() {
       CustomImage.configure({
         inline: false,
         allowBase64: false,
-
-        resize: {
-          enabled: true,
-          directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
-          minWidth: 120,
-          minHeight: 80,
-          alwaysPreserveAspectRatio: true,
-        },
       }),
     ],
 
@@ -200,7 +187,7 @@ export default function PostUpdate() {
 
     const { state, view } = editor;
 
-    if (!state.selection.node) {
+    if (!(state.selection instanceof NodeSelection)) {
       return;
     }
 
@@ -271,7 +258,6 @@ export default function PostUpdate() {
 
     try {
       const base64 = await fileToBase64(file);
-
       const id = crypto.randomUUID();
       const previewUrl = URL.createObjectURL(file);
 
@@ -287,10 +273,13 @@ export default function PostUpdate() {
       editor
         .chain()
         .focus()
-        .setImage({
-          src: previewUrl,
-          alt: file.name,
-          imageId: id,
+        .insertContent({
+          type: "image",
+          attrs: {
+            src: previewUrl,
+            alt: file.name,
+            imageId: id,
+          },
         })
         .run();
     } catch (error) {
@@ -308,10 +297,6 @@ export default function PostUpdate() {
   const convertEditorHtmlToRequestData = (html: string) => {
     const documentNode = new DOMParser().parseFromString(html, "text/html");
 
-    /*
-      생성 페이지와 동일:
-      사용자가 Enter 두 번으로 만든 빈 문단을 &nbsp;로 저장합니다.
-    */
     const paragraphElements =
       documentNode.querySelectorAll<HTMLParagraphElement>("p");
 
@@ -332,9 +317,6 @@ export default function PostUpdate() {
     imageElements.forEach((imageElement) => {
       const imageId = imageElement.getAttribute("data-image-id");
 
-      /*
-        img에 연결된 상태 데이터가 없으면 삭제된 이미지로 판단합니다.
-      */
       if (!imageId) {
         imageElement.remove();
         return;
@@ -349,11 +331,6 @@ export default function PostUpdate() {
 
       const imageIndex = images.length;
 
-      /*
-        본문에 존재하는 실제 순서대로 이미지 Base64 배열을 재구성합니다.
-        따라서 이미지 드래그 순서가 변경되어도
-        image://0 -> images[0] 관계가 항상 유지됩니다.
-      */
       images.push(editorImage.base64);
 
       imageElement.setAttribute("src", `image://${imageIndex}`);
@@ -405,80 +382,6 @@ export default function PostUpdate() {
         URL.revokeObjectURL(image.previewUrl);
       }
     });
-  };
-
-  const requestExistingPost = async () => {
-    if (!isSession || !postId) {
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-
-      const res = await fetch(
-        `/api/posts/${encodeURIComponent(postId)}/existing/info`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `${isSession}`,
-          },
-        },
-      );
-
-      const response = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          response.error ||
-            response.message ||
-            "게시글 정보를 불러오지 못했습니다.",
-        );
-      }
-
-      const post = response?.data as TExistingPost;
-
-      setTitle(post?.title ?? "");
-      setCategory(post?.category ?? "FREE");
-      setIsPublic(post?.isPublic ?? "TRUE");
-
-      /*
-        기존 Base64 이미지:
-        image[0] -> 첫 번째 Blob URL
-        image[1] -> 두 번째 Blob URL
-      */
-      const existingImages = (post?.images ?? []).map((base64, index) => {
-        const blob = base64ToBlob(base64);
-
-        return {
-          id: `existing-image-${index}`,
-          previewUrl: URL.createObjectURL(blob),
-          base64,
-        };
-      });
-
-      setEditorImages(existingImages);
-
-      /*
-        image://N 참조값을 Blob URL로 바꾼 HTML을 state에 넣습니다.
-      */
-      const editorHtml = replaceImageReferencesForEditor(
-        post?.context ?? "<p></p>",
-        existingImages,
-      );
-
-      setExistingContext(editorHtml);
-      setIsPostLoaded(true);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "게시글 정보를 불러오는 중 오류가 발생했습니다.";
-
-      alert(message);
-      navigate("/posts");
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handlePostUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -543,7 +446,7 @@ export default function PostUpdate() {
         },
       );
 
-      const response = await res.json();
+      const response = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(
@@ -570,17 +473,86 @@ export default function PostUpdate() {
   useEffect(() => {
     if (!isSession) {
       alert("로그인이 필요한 페이지입니다.");
-      navigate("/signin");
+      navigate("/signin", { replace: true });
       return;
     }
 
     if (!postId) {
       alert("게시글 ID가 올바르지 않습니다.");
-      navigate("/posts");
+      navigate("/posts", { replace: true });
       return;
     }
 
-    requestExistingPost();
+    let isCancelled = false;
+
+    fetch(`/api/posts/${encodeURIComponent(postId)}/existing/info`, {
+      method: "GET",
+      headers: {
+        Authorization: `${isSession}`,
+      },
+    })
+      .then(async (res) => {
+        const response = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(
+            response.error ||
+              response.message ||
+              "게시글 정보를 불러오지 못했습니다.",
+          );
+        }
+
+        return response.data as TExistingPost;
+      })
+      .then((post) => {
+        if (isCancelled) {
+          return;
+        }
+
+        const existingImages = (post?.images ?? []).map((base64, index) => {
+          const blob = base64ToBlob(base64);
+
+          return {
+            id: `existing-image-${index}`,
+            previewUrl: URL.createObjectURL(blob),
+            base64,
+          };
+        });
+
+        const editorHtml = replaceImageReferencesForEditor(
+          post?.context ?? "<p></p>",
+          existingImages,
+        );
+
+        setTitle(post?.title ?? "");
+        setCategory(post?.category ?? "FREE");
+        setIsPublic(post?.isPublic ?? "TRUE");
+        setEditorImages(existingImages);
+        setExistingContext(editorHtml);
+        setIsPostLoaded(true);
+      })
+      .catch((error) => {
+        if (isCancelled) {
+          return;
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "게시글 정보를 불러오는 중 오류가 발생했습니다.";
+
+        alert(message);
+        navigate("/posts", { replace: true });
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [isSession, navigate, postId]);
 
   useEffect(() => {
