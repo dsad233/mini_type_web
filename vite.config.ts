@@ -8,10 +8,10 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   server: {
     host: "0.0.0.0",
-    port: 3444,
+    port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:3011",
+        target: "http://localhost:3017/api",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
@@ -20,7 +20,14 @@ export default defineConfig({
   preview: {
     host: "0.0.0.0",
     port: 3444,
-    allowedHosts: ["nanunya.ggm.kr"],
+    allowedHosts: ["communityhub.kro.kr"],
+    proxy: {
+      "/api": {
+        target: "https://communityhub.kro.kr/api",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
+      },
+    },
   },
   resolve: {
     alias: [
