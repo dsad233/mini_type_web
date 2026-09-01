@@ -91,6 +91,14 @@ export default function PostCreate() {
       CustomImage.configure({
         inline: false,
         allowBase64: false,
+
+        resize: {
+          enabled: true,
+          directions: ["top-left", "top-right", "bottom-left", "bottom-right"],
+          minWidth: 120,
+          minHeight: 80,
+          alwaysPreserveAspectRatio: true,
+        },
       }),
     ],
 
