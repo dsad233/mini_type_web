@@ -73,8 +73,6 @@ export default function Posts() {
             alert(response.error || response.message);
             setIsLoading(false);
           } else if (res.status >= 500) {
-            const response = await res.json();
-            console.log("response: ", response);
             alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
             return;
           } else {

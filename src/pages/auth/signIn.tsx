@@ -171,7 +171,8 @@ export default function SignIn() {
                 className="social-btn"
                 onClick={() =>
                   (window.location.href =
-                    "http://localhost:3000/auth/signin/social/google")
+                    import.meta.env.VITE_SERVER_API_URL +
+                    "/auth/signin/social/google")
                 }
               >
                 Google로 계속하기

@@ -34,6 +34,8 @@ export const Header = () => {
                 <button
                   className="ghost-btn"
                   onClick={async () => {
+                    if (!confirm("로그아웃 하시겠습니까?")) return;
+
                     await fetch("/api/auth/signout", {
                       method: "POST",
                       headers: {

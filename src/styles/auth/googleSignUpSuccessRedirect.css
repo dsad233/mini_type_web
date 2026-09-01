@@ -1,0 +1,109 @@
+.google-signup-complete-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(66, 133, 244, 0.14),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(52, 168, 83, 0.12),
+      transparent 28%
+    ),
+    #f6f8fc;
+  color: #202124;
+}
+
+.google-signup-complete-page *,
+.google-signup-complete-page *::before,
+.google-signup-complete-page *::after {
+  box-sizing: border-box;
+}
+
+.google-signup-complete-card {
+  width: min(100%, 500px);
+  padding: 42px 36px;
+  border: 1px solid rgba(218, 220, 224, 0.95);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 18px 48px rgba(60, 64, 67, 0.16);
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
+
+.google-signup-complete-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.google-signup-complete-icon--success {
+  background: linear-gradient(135deg, #34a853, #188038);
+  box-shadow: 0 12px 26px rgba(52, 168, 83, 0.25);
+}
+
+.google-signup-complete-icon--error {
+  background: linear-gradient(135deg, #ea4335, #c5221f);
+  box-shadow: 0 12px 26px rgba(234, 67, 53, 0.22);
+}
+
+.google-signup-complete-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.google-signup-complete-card h1 {
+  margin: 0;
+  color: #202124;
+  font-size: 27px;
+  line-height: 1.35;
+  letter-spacing: -0.03em;
+}
+
+.google-signup-complete-description {
+  margin: 14px 0 0;
+  color: #5f6368;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.google-signup-complete-description strong {
+  color: #202124;
+  font-weight: 800;
+  word-break: break-all;
+}
+
+@media (max-width: 480px) {
+  .google-signup-complete-page {
+    padding: 16px;
+  }
+
+  .google-signup-complete-card {
+    padding: 34px 24px;
+    border-radius: 22px;
+  }
+
+  .google-signup-complete-card h1 {
+    font-size: 23px;
+  }
+}
