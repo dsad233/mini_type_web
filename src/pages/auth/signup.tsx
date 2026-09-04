@@ -34,6 +34,8 @@ export default function SignUp() {
     ? `${phoneCountryCode}${normalizedPhoneLocalNumber}`
     : "";
 
+  const emailContainsKorean = /[ㄱ-ㅎㅏ-ㅣ가-힣]/.test(email);
+
   const validation = useMemo(() => {
     const trimmedLoginId = loginId.trim();
     const trimmedNickname = nickname.trim();
@@ -42,11 +44,18 @@ export default function SignUp() {
     return {
       loginId: Regex.loginId.test(trimmedLoginId),
       nickname: trimmedNickname.length >= 2 && trimmedNickname.length <= 32,
-      email: Regex.email.test(trimmedEmail),
+      email: !emailContainsKorean && Regex.email.test(trimmedEmail),
       password: password.length >= 8,
       passwordMatch: confirmPassword.length > 0 && password === confirmPassword,
     };
-  }, [loginId, nickname, email, password, confirmPassword]);
+  }, [
+    loginId,
+    nickname,
+    email,
+    emailContainsKorean,
+    password,
+    confirmPassword,
+  ]);
 
   const getFieldLabel = (type: TCheckType) => {
     if (type === "loginId") return "아이디";
@@ -502,7 +511,9 @@ export default function SignUp() {
                   >
                     {email.trim().length > 0 && !validation.email && (
                       <small className="signup-validation-message is-error">
-                        올바른 이메일 형식을 입력해주세요.
+                        {emailContainsKorean
+                          ? "이메일에는 한글을 입력할 수 없습니다."
+                          : "올바른 이메일 형식을 입력해주세요."}
                       </small>
                     )}
 
