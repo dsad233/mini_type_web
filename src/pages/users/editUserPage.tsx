@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "../../styles/users/editUserPage.css";
-import { getWithExpiry } from "@src/utils";
+import { getWithExpiry, imageDecodeToUrl } from "@src/utils";
 import { useNavigate } from "react-router-dom";
 import { Loading } from "@src/components";
 
@@ -370,7 +370,10 @@ export default function EditUserPage() {
           <div className="user-edit-page__profile-card">
             <div className="user-edit-page__avatar">
               {user?.image ? (
-                <img src={user.image} alt="프로필 이미지" />
+                <img
+                  src={imageDecodeToUrl(user.image) as string}
+                  alt="프로필 이미지"
+                />
               ) : (
                 <span>{savedNickname?.[0] || user?.nickname?.[0] || "U"}</span>
               )}
