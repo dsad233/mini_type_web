@@ -219,9 +219,9 @@ export default function MyPostsPage() {
                   onChange={(e) => setSelectCategory(e.target.value)}
                 >
                   <option value="ALL">전체 카테고리</option>
-                  <option value="FREE">FREE</option>
-                  <option value="SPORTS">SPORTS</option>
-                  <option value="GAME">GAME</option>
+                  <option value="FREE">자유</option>
+                  <option value="SPORTS">스포츠</option>
+                  <option value="GAME">게임</option>
                 </select>
 
                 <input

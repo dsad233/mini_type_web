@@ -253,7 +253,7 @@ export default function Posts() {
                   value={selectIsPublic}
                   onChange={(e) => setSelectIsPublic(e.target.value)}
                 >
-                  <option value="PUBLIC">공개 글</option>
+                  {/* <option value="PUBLIC">공개 글</option> */}
                   <option value="ALL">전체 글</option>
                 </select>
               </div>
