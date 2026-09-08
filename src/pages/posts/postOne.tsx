@@ -40,6 +40,9 @@ type TPost = {
           property: boolean;
         }
       | undefined;
+    count: {
+      likes: number | undefined;
+    };
     replies:
       | {
           id: string | null;
@@ -52,6 +55,9 @@ type TPost = {
             nickname: string;
             image: string | null;
             property: boolean;
+          };
+          count: {
+            replyLikes: number | null;
           };
         }[]
       | undefined;
@@ -341,7 +347,6 @@ export function PostOne() {
       },
       body: JSON.stringify({
         context: context.trim(),
-        type: "COMMENT",
       }),
     })
       .then(async (res) => {
@@ -539,6 +544,56 @@ export function PostOne() {
       .then((res) => {
         if (res?.ok) {
           alert("댓글 삭제가 완료 되었습니다.");
+          window.location.reload();
+          return res;
+        }
+      });
+  };
+
+  const handlerCommentLike = async (
+    {
+      postId,
+      commentId,
+      replyId,
+    }: {
+      postId: string;
+      commentId: string;
+      replyId: string | null;
+    },
+    e: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    e.preventDefault();
+
+    if (!isSession) {
+      alert("로그인 후 이용 가능합니다.");
+      return;
+    }
+
+    const url =
+      commentId && !replyId
+        ? `/api/posts/${postId}/comments/${commentId}/likes`
+        : `/api/posts/${postId}/comments/${commentId}/replies/${replyId}/likes`;
+
+    await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `${isSession}`,
+      },
+    })
+      .then(async (res) => {
+        if (res.status > 201 && res.status < 500) {
+          const response = await res.json();
+          alert(response.error || response.message);
+        } else if (res.status >= 500) {
+          alert("서버 에러가 발생하였습니다. 잠시 후 다시 시도해주세요.");
+          return;
+        } else {
+          return res;
+        }
+      })
+      .then(async (res) => {
+        if (res?.ok) {
           window.location.reload();
           return res;
         }
@@ -793,6 +848,31 @@ export function PostOne() {
                               <div className="post-one-comment-actions">
                                 {!isEditing &&
                                   isSession &&
+                                  comment.deletedAt === "FALSE" &&
+                                  comment.id && (
+                                    <button
+                                      type="button"
+                                      className="post-one-comment-action like"
+                                      onClick={(e) =>
+                                        handlerCommentLike(
+                                          {
+                                            postId: post.id,
+                                            commentId: comment.id as string,
+                                          } as {
+                                            postId: string;
+                                            commentId: string;
+                                            replyId: null;
+                                          },
+                                          e,
+                                        )
+                                      }
+                                    >
+                                      좋아요 {comment.count.likes}
+                                    </button>
+                                  )}
+
+                                {!isEditing &&
+                                  isSession &&
                                   comment.deletedAt === "FALSE" && (
                                     <button
                                       type="button"
@@ -972,12 +1052,33 @@ export function PostOne() {
                                         <strong>{reply.author.nickname}</strong>
                                         <span>{reply.createdAt}</span>
                                       </div>
-
                                       {!isReplyEditing &&
                                         isSession &&
                                         reply.author.property &&
                                         reply.deletedAt === "FALSE" && (
                                           <div className="post-one-comment-actions">
+                                            <button
+                                              type="button"
+                                              className="post-one-comment-action like"
+                                              onClick={(e) =>
+                                                handlerCommentLike(
+                                                  {
+                                                    postId: post.id,
+                                                    commentId:
+                                                      comment.id as string,
+                                                    replyId: reply.id,
+                                                  } as {
+                                                    postId: string;
+                                                    commentId: string;
+                                                    replyId: string;
+                                                  },
+                                                  e,
+                                                )
+                                              }
+                                            >
+                                              좋아요 {reply.count.replyLikes}
+                                            </button>
+
                                             <button
                                               type="button"
                                               className="post-one-comment-action edit"
